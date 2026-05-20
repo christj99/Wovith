@@ -1,6 +1,6 @@
 # Wovith
 
-Stage 0.5 implements the smallest Wovith runtime with one real read-only connector: Google Calendar events. The synthetic Stage 0 Daily Work Lens remains intact.
+Stage 0.75 is a quality pass over the smallest Wovith runtime with one real read-only connector: Google Calendar events. The synthetic Stage 0 Daily Work Lens remains intact.
 
 ## Commands
 
@@ -22,4 +22,4 @@ The app includes a **Clear Cached Results** control that removes persisted evalu
 
 ## Stage
 
-See [CURRENT_STAGE.md](CURRENT_STAGE.md), [STAGE_0_DEMO.md](STAGE_0_DEMO.md), [STAGE_0_5_GOOGLE_CALENDAR.md](STAGE_0_5_GOOGLE_CALENDAR.md), and the canonical contracts in [docs/canonical_docs](docs/canonical_docs).
+See [CURRENT_STAGE.md](CURRENT_STAGE.md), [STAGE_0_DEMO.md](STAGE_0_DEMO.md), [STAGE_0_5_GOOGLE_CALENDAR.md](STAGE_0_5_GOOGLE_CALENDAR.md), [STAGE_0_5_REAL_WORLD_VALIDATION.md](STAGE_0_5_REAL_WORLD_VALIDATION.md), and the canonical contracts in [docs/canonical_docs](docs/canonical_docs).

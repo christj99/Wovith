@@ -28,7 +28,11 @@ export function GoogleCalendarConnectorPanel({
           <p className="eyebrow">Read-only connector</p>
           <h2>Google Calendar</h2>
         </div>
-        <span className={`connector-status ${account.status}`}>
+        <span
+          className={`connector-status ${account.status}`}
+          role="status"
+          aria-live="polite"
+        >
           {setupRequired ? "setup required" : account.status}
         </span>
       </div>
@@ -40,13 +44,13 @@ export function GoogleCalendarConnectorPanel({
         Access tokens are held in memory for this local prototype.
       </p>
       {setupRequired ? (
-        <div className="setup-note" role="status">
-          Google Calendar setup required. Set VITE_GOOGLE_CLIENT_ID in
-          `.env.local` to connect.
+        <div className="setup-note" role="status" aria-live="polite">
+          Google Calendar setup required. Create `.env.local`, set
+          `VITE_GOOGLE_CLIENT_ID`, then restart the local app.
         </div>
       ) : null}
       {account.lastError ? (
-        <div className="connector-error" role="status">
+        <div className="connector-error" role="status" aria-live="polite">
           {account.lastError.message}
         </div>
       ) : null}

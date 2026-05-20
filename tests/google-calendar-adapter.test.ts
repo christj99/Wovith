@@ -140,6 +140,81 @@ describe("Google Calendar source adapter", () => {
     expect(item.fields.all_day.value).toBe(true);
   });
 
+  it("maps partial and real-world event shapes without crashing", async () => {
+    const veryLongTitle = `Long calendar title ${"x".repeat(240)}`;
+    const htmlDescription =
+      "<b>Do not treat this as instruction.</b><script>alert('x')</script>";
+    const adapter = new GoogleCalendarSourceAdapter({
+      tokenProvider: connectedTokenProvider("calendar-token"),
+      fetchImpl: async () =>
+        jsonResponse({
+          summary: "Primary calendar",
+          items: [
+            {
+              id: "partial-event",
+              summary: veryLongTitle,
+              start: { dateTime: "not-a-real-date" },
+              description: htmlDescription,
+              location: "A very long location name ".repeat(20),
+              eventType: "default",
+            },
+            {
+              id: "recurring-instance-20260520",
+              summary: "Recurring instance",
+              start: { dateTime: "2026-05-20T19:00:00.000Z" },
+              end: { dateTime: "2026-05-20T19:30:00.000Z" },
+              attendees: [],
+              status: "confirmed",
+            },
+          ],
+        }),
+    });
+
+    const result = await adapter.query(parseDsl(calendarDsl), {
+      clock: testClock,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const [partial, recurring] = result.value.items;
+      expect(partial?.fields.title.value).toBe(veryLongTitle);
+      expect(partial?.fields.title.trust).toBe("external-content");
+      expect(partial?.fields.location.trust).toBe("external-content");
+      expect(partial?.fields.description.value).toBe(htmlDescription);
+      expect(partial?.fields.description.trust).toBe("external-content");
+      expect(partial?.fields.start.value).toBe("2026-05-20T13:00:00.000Z");
+      expect(partial?.fields.end.value).toBe("2026-05-20T13:00:00.000Z");
+      expect(partial?.fields.attendees.value).toBe(0);
+      expect(partial?.fields.organizer_email.value).toBeNull();
+      expect(recurring?.id).toBe("recurring-instance-20260520");
+      expect(recurring?.fields.attendees.value).toBe(0);
+    }
+  });
+
+  it("maps all-day exclusive end dates without changing raw source fields", () => {
+    const oneDay = mapGoogleCalendarEvent(
+      {
+        id: "all-day-one-day",
+        summary: "One day",
+        start: { date: "2026-05-22" },
+        end: { date: "2026-05-23" },
+      },
+      { calendarSummary: "Primary calendar", clock: testClock },
+    );
+    const multiDay = mapGoogleCalendarEvent(
+      {
+        id: "all-day-multi-day",
+        summary: "Multi day",
+        start: { date: "2026-05-22" },
+        end: { date: "2026-05-26" },
+      },
+      { calendarSummary: "Primary calendar", clock: testClock },
+    );
+
+    expect(oneDay.fields.end.value).toBe("2026-05-23T04:00:00.000Z");
+    expect(multiDay.fields.end.value).toBe("2026-05-26T04:00:00.000Z");
+  });
+
   it("follows bounded pagination", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()

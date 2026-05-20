@@ -7,7 +7,7 @@ export function RawRenderer({
   result,
 }: {
   result: CellEvaluationResult;
-  onWhy: (evidence: ProvenanceEvidence) => void;
+  onWhy: (evidence: ProvenanceEvidence, trigger?: HTMLElement | null) => void;
 }) {
   const items = result.payload.items ?? [];
   return (
@@ -20,7 +20,8 @@ export function RawRenderer({
             <button
               key={item.itemId}
               type="button"
-              onClick={() => onWhy(evidence)}
+              aria-label={`Why for ${item.title ?? item.itemId}`}
+              onClick={(event) => onWhy(evidence, event.currentTarget)}
             >
               Why {item.itemId}
             </button>

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   GOOGLE_CALENDAR_CONNECTOR_ID,
   GOOGLE_CALENDAR_READONLY_SCOPE,
+  MockGoogleCalendarTokenProvider,
   type GoogleAccessToken,
   type GoogleCalendarTokenProvider,
 } from "@/connectors/google-calendar/google-calendar-auth";
@@ -160,6 +161,7 @@ describe("Google Calendar runtime integration", () => {
                 end: { dateTime: "2026-05-20T18:30:00.000Z" },
                 location: "Unique Sensitive Location 882",
                 description: "Unique Sensitive Description 993",
+                organizer: { email: "unique-organizer-884@example.test" },
               },
             ],
           }),
@@ -180,8 +182,105 @@ describe("Google Calendar runtime integration", () => {
     expect(raw).not.toContain("Unique Private Calendar Summary 771");
     expect(raw).not.toContain("Unique Sensitive Location 882");
     expect(raw).not.toContain("Unique Sensitive Description 993");
+    expect(raw).not.toContain("unique-organizer-884@example.test");
     expect(raw).not.toContain('"payload"');
     expect(raw).not.toContain('"raw"');
+  });
+
+  it("full-output tier explicitly persists Google Calendar output", async () => {
+    const storage = new MemoryStorage();
+    const store = new LocalStage0Store(storage);
+    const lens = {
+      ...ensureGoogleCalendarCell(
+        createDailyWorkLens(),
+        "2026-05-20T13:00:00.000Z",
+      ),
+      snapshotPolicy: {
+        tier: "full-output" as const,
+        retentionDays: 30,
+        syncSnapshots: false as const,
+      },
+    };
+    const cell = lens.cells.find(
+      (entry) => entry.id === GOOGLE_CALENDAR_CELL_ID,
+    );
+    expect(cell).toBeDefined();
+    if (!cell) {
+      return;
+    }
+    const adapter = new GoogleCalendarSourceAdapter({
+      tokenProvider: connectedTokenProvider(),
+      fetchImpl: async () =>
+        new Response(
+          JSON.stringify({
+            summary: "Primary calendar",
+            items: [
+              {
+                id: "full-output-event",
+                summary: "Full Output Private Summary 314",
+                start: { dateTime: "2026-05-20T18:00:00.000Z" },
+                end: { dateTime: "2026-05-20T18:30:00.000Z" },
+                location: "Full Output Private Location 315",
+                description: "Full Output Private Description 316",
+              },
+            ],
+          }),
+        ),
+    });
+    const result = await evaluateCell({
+      cell,
+      lensId: lens.id,
+      adapter,
+      sourceSchema: sourceSchemaRegistry[cell.ast.from.sourceId],
+      validationContext: stage0ValidationContext,
+      clock: testClock,
+    });
+
+    store.saveEvaluation(result, lens.snapshotPolicy);
+    const raw = storage.getItem("wovith.stage0.store.v1") ?? "";
+
+    expect(raw).toContain("Full Output Private Summary 314");
+    expect(store.listEvaluations(cell.id)[0]?.fullOutput).toBeDefined();
+  });
+
+  it("disconnect keeps lens definitions but blocks Google cell evaluation", async () => {
+    const storage = new MemoryStorage();
+    const store = new LocalStage0Store(storage);
+    const lens = ensureGoogleCalendarCell(
+      createDailyWorkLens(),
+      "2026-05-20T13:00:00.000Z",
+    );
+    const provider = new MockGoogleCalendarTokenProvider();
+    await provider.connect();
+    provider.disconnect();
+    store.saveLens(lens);
+    const cell = lens.cells.find(
+      (entry) => entry.id === GOOGLE_CALENDAR_CELL_ID,
+    );
+    expect(cell).toBeDefined();
+    if (!cell) {
+      return;
+    }
+    const scheduler = new RuntimeScheduler({
+      adapters: createSyntheticAdapters(),
+      sourceSchemas: sourceSchemaRegistry,
+      validationContext: stage0ValidationContext,
+      clock: testClock,
+      adapterUnavailableErrors: {
+        "google.calendar.events": {
+          code: "google-calendar-not-connected",
+          message:
+            "Connect Google Calendar read-only access to evaluate this cell.",
+        },
+      },
+    });
+
+    const result = await scheduler.refreshCell(cell, lens);
+
+    expect(provider.getAccessToken()).toBeNull();
+    expect(store.getLens(lens.id)).not.toBeNull();
+    expect(result.freshness).toBe("blocked");
+    expect(result.errors[0]?.code).toBe("google-calendar-not-connected");
   });
 });
 

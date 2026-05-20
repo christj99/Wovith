@@ -32,6 +32,10 @@ describe("Google Calendar token provider", () => {
     expect(provider.status().status).toBe("connected");
     expect(provider.getAccessToken()?.accessToken).toBe("secret-access-token");
     expect(window.localStorage.length).toBe(0);
+    expect(JSON.stringify(window.localStorage)).not.toContain(
+      "secret-access-token",
+    );
+    expect(JSON.stringify(window.localStorage)).not.toContain("refresh");
   });
 
   it("returns setup-needed state when the client ID is missing", async () => {

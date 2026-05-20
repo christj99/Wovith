@@ -58,6 +58,15 @@ describe("TableRenderer", () => {
                 location: "HQ",
                 status: "confirmed",
               },
+              {
+                id: "multi-day-event-1",
+                summary: "Multi Day Planning",
+                start: { date: "2026-05-22" },
+                end: { date: "2026-05-26" },
+                attendees: [],
+                location: "HQ",
+                status: "confirmed",
+              },
             ],
           }),
         ),
@@ -90,8 +99,25 @@ describe("TableRenderer", () => {
     ).not.toBeInTheDocument();
 
     const allDayRow = screen.getByRole("row", { name: /All Day Planning/ });
-    expect(within(allDayRow).getByText("May 22, 2026")).toBeVisible();
-    expect(within(allDayRow).getByText("May 23, 2026")).toBeVisible();
+    expect(within(allDayRow).getAllByText("May 22, 2026")).toHaveLength(2);
+    expect(
+      within(allDayRow).queryByText("May 23, 2026"),
+    ).not.toBeInTheDocument();
+    const multiDayRow = screen.getByRole("row", { name: /Multi Day Planning/ });
+    expect(within(multiDayRow).getByText("May 25, 2026")).toBeVisible();
+    expect(
+      within(multiDayRow).queryByText("May 26, 2026"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(timedRow).getByRole("button", {
+        name: "Why for Timed Design Review",
+      }),
+    ).toBeVisible();
+    expect(
+      result.payload.table?.rows.find(
+        (row) => row.itemId === "multi-day-event-1",
+      )?.fields.end.value,
+    ).toBe("2026-05-26T04:00:00.000Z");
     expect(
       screen.queryByText("2026-05-20T18:00:00.000Z"),
     ).not.toBeInTheDocument();

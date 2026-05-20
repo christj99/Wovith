@@ -55,6 +55,9 @@ export function explainEmptyCell(input: {
   sourceSchema: SourceSchema;
   evaluatedAt: string;
 }): string {
+  if (input.sourceSchema.sourceId === "google.calendar.events") {
+    return "No upcoming events found in the next 90 days.";
+  }
   const predicates = input.ast.where.map((predicate) => {
     const value = predicate.value ? ` ${previewAstValue(predicate.value)}` : "";
     return `${predicate.field} ${canonicalOperatorToDsl[predicate.op]}${value}`;

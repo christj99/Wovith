@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { GoogleCalendarConnectorPanel } from "@/connectors/google-calendar/GoogleCalendarConnectorPanel";
 import {
@@ -53,6 +53,7 @@ interface WhySelection {
 
 export function App() {
   const googleMockEnabled = useMemo(() => isGoogleCalendarMockEnabled(), []);
+  const googleMockScenario = useMemo(() => googleCalendarMockScenario(), []);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
     | string
     | undefined;
@@ -73,13 +74,21 @@ export function App() {
       createSyntheticAdapters();
     if (googleAccount.status === "connected") {
       next[GOOGLE_CALENDAR_EVENTS_SOURCE_ID] = googleMockEnabled
-        ? new MockGoogleCalendarSourceAdapter(googleTokenProvider)
+        ? new MockGoogleCalendarSourceAdapter(
+            googleTokenProvider,
+            googleMockScenario,
+          )
         : new GoogleCalendarSourceAdapter({
             tokenProvider: googleTokenProvider,
           });
     }
     return next;
-  }, [googleAccount.status, googleMockEnabled, googleTokenProvider]);
+  }, [
+    googleAccount.status,
+    googleMockEnabled,
+    googleMockScenario,
+    googleTokenProvider,
+  ]);
   const store = useMemo(() => new LocalStage0Store(window.localStorage), []);
   const [lens, setLens] = useState(() => {
     const existing = store.listLenses()[0];
@@ -104,6 +113,7 @@ export function App() {
     [],
   );
   const [whySelection, setWhySelection] = useState<WhySelection | null>(null);
+  const whyReturnFocusRef = useRef<HTMLElement | null>(null);
   const [pendingGoogleRefresh, setPendingGoogleRefresh] = useState(false);
 
   const validationContext = useMemo(
@@ -273,8 +283,15 @@ export function App() {
     cell: CellDefinition,
     result: CellEvaluationResult,
     evidence: ProvenanceEvidence,
+    trigger?: HTMLElement | null,
   ) {
+    whyReturnFocusRef.current = trigger ?? null;
     setWhySelection({ cell, result, evidence });
+  }
+
+  function closeWhy() {
+    setWhySelection(null);
+    window.setTimeout(() => whyReturnFocusRef.current?.focus(), 0);
   }
 
   return (
@@ -284,7 +301,7 @@ export function App() {
           <div className="brand-mark">W</div>
           <div>
             <h1>Wovith</h1>
-            <p>Stage 0.5</p>
+            <p>Stage 0.75</p>
           </div>
         </div>
         <button className="lens-button active" type="button">
@@ -366,10 +383,10 @@ export function App() {
                 sourceSchema={sourceSchemaRegistry[cell.ast.from.sourceId]}
                 onEdit={() => setSelectedCellId(cell.id)}
                 onRefresh={() => void refreshCell(cell)}
-                onWhy={(evidence) => {
+                onWhy={(evidence, trigger) => {
                   const result = results[cell.id];
                   if (result) {
-                    openWhy(cell, result, evidence);
+                    openWhy(cell, result, evidence, trigger);
                   }
                 }}
               />
@@ -377,13 +394,21 @@ export function App() {
           </section>
 
           <aside className="editor-panel" aria-label="Cell editor">
-            <div className="editor-tabs">
+            <div
+              className="editor-tabs"
+              role="tablist"
+              aria-label="Cell editor tabs"
+            >
               {lens.cells.map((cell) => (
                 <button
+                  aria-controls="dsl-editor"
+                  aria-selected={cell.id === selectedCell?.id}
                   className={
                     cell.id === selectedCell?.id ? "tab active" : "tab"
                   }
+                  id={`cell-tab-${cell.id}`}
                   key={cell.id}
+                  role="tab"
                   type="button"
                   onClick={() => setSelectedCellId(cell.id)}
                 >
@@ -396,6 +421,7 @@ export function App() {
             </label>
             <textarea
               id="dsl-editor"
+              aria-label={`Canonical DSL for ${selectedCell?.title ?? "selected cell"}`}
               data-testid="dsl-editor"
               value={editorText}
               spellCheck={false}
@@ -429,7 +455,7 @@ export function App() {
           sourceSchema={
             sourceSchemaRegistry[whySelection.cell.ast.from.sourceId]
           }
-          onClose={() => setWhySelection(null)}
+          onClose={closeWhy}
         />
       ) : null}
     </main>
@@ -442,7 +468,7 @@ interface CellCardProps {
   sourceSchema?: SourceSchema;
   onEdit: () => void;
   onRefresh: () => void;
-  onWhy: (evidence: ProvenanceEvidence) => void;
+  onWhy: (evidence: ProvenanceEvidence, trigger?: HTMLElement | null) => void;
 }
 
 function CellCard({
@@ -473,7 +499,11 @@ function CellCard({
           <p>{cell.description}</p>
         </div>
         <div className="cell-actions">
-          <span className={`freshness ${result?.freshness ?? "idle"}`}>
+          <span
+            className={`freshness ${result?.freshness ?? "idle"}`}
+            role="status"
+            aria-live="polite"
+          >
             {result?.freshness ?? "idle"}
           </span>
           <button type="button" onClick={onEdit}>
@@ -494,8 +524,8 @@ function CellCard({
       ) : null}
 
       {!result ? (
-        <div className="loading-row">
-          No current result. Refresh to evaluate.
+        <div className="loading-row" role="status">
+          No current result. Refresh to evaluate this cell.
         </div>
       ) : null}
       {result && result.errors.length === 0 ? (
@@ -520,7 +550,7 @@ function RendererSwitch({
   result,
 }: {
   result: CellEvaluationResult;
-  onWhy: (evidence: ProvenanceEvidence) => void;
+  onWhy: (evidence: ProvenanceEvidence, trigger?: HTMLElement | null) => void;
 }) {
   if (result.renderer === "count") {
     return <CountRenderer result={result} />;
@@ -543,25 +573,51 @@ function WhyPanel({
   selection: WhySelection;
   sourceSchema: SourceSchema;
 }) {
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const why = explainWhyItem({
     ast: selection.cell.ast,
     sourceSchema,
     evidence: selection.evidence,
     snapshot: selection.result.snapshot,
   });
+  const titleId = `why-title-${selection.cell.id}`;
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   return (
     <aside
       className="why-panel"
       aria-label="Why am I seeing this?"
+      aria-labelledby={titleId}
       data-testid="why-panel"
+      role="dialog"
+      tabIndex={-1}
     >
       <header>
         <div>
           <p className="eyebrow">Why am I seeing this?</p>
-          <h2>{selection.cell.title}</h2>
+          <h2 id={titleId}>{selection.cell.title}</h2>
         </div>
-        <button type="button" onClick={onClose}>
+        <button
+          ref={closeButtonRef}
+          type="button"
+          aria-label="Close why panel"
+          onClick={onClose}
+        >
           Close
         </button>
       </header>
@@ -632,7 +688,7 @@ function WarningList({ warnings }: { warnings: DslValidationWarning[] }) {
         {summary.summary}
       </p>
       <details data-testid="warning-details">
-        <summary>Details</summary>
+        <summary>Warning details</summary>
         <ul>
           {summary.details.map((detail, index) => (
             <li key={`${index}-${detail}`}>{detail}</li>
@@ -648,4 +704,11 @@ function isGoogleCalendarMockEnabled(): boolean {
     import.meta.env.VITE_WOVITH_E2E_MOCK_GOOGLE === "1" ||
     window.localStorage.getItem("wovith.e2e.mockGoogle") === "1"
   );
+}
+
+function googleCalendarMockScenario(): "default" | "no-events" {
+  return window.localStorage.getItem("wovith.e2e.mockGoogleScenario") ===
+    "no-events"
+    ? "no-events"
+    : "default";
 }

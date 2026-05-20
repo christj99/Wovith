@@ -325,6 +325,12 @@ p {
   border-color: #efc0b7;
 }
 
+.freshness.blocked {
+  color: var(--amber);
+  background: #fff9ea;
+  border-color: #ead39a;
+}
+
 .freshness.stale {
   color: var(--amber);
   background: #fff6df;

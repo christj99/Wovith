@@ -1,8 +1,10 @@
 # Current Stage
 
-## Stage 0.5: Google Calendar Read-Only Connector
+## Stage 0.75: Quality Pass
 
-Wovith is currently at **Stage 0.5**. This repo contains the hardened Stage 0 local web prototype plus exactly one real read-only connector: Google Calendar events.
+Wovith is currently at **Stage 0.75**. This is a quality, accessibility, reliability, privacy-regression, and documentation pass over the completed Stage 0.5 product. It does not expand connector scope or start Stage 1.
+
+The repo contains the hardened Stage 0 local web prototype plus exactly one real read-only connector: Google Calendar events.
 
 ```text
 source -> cell AST -> canonical DSL -> validation -> scheduler/evaluation -> renderer -> provenance/Why panel -> redacted local persistence
@@ -79,15 +81,25 @@ Stage 0.5 adds only:
 
 Stage 0.5 does **not** add Gmail, Drive, Tasks, Google Workspace MCP, arbitrary MCP servers, calendar writes, event create/update/delete, NL/model integration, mobile, sync, Automerge, marketplace, widgets, custom renderers, payments, or autonomous background actions.
 
-- Google OAuth web client configured.
-- Personal primary calendar connected.
-- Google Upcoming Events cell rendered real data.
-- 90-day DSL window worked.
-- Warning summary appeared.
-- Table formatting was readable.
-- Why panel opened.
-- Disconnect behavior tested if you did test it.
-- No Gmail/Drive/MCP/writes/sync/NL/mobile added.
+## Stage 0.5 Real-World Validation
+
+Stage 0.5 has been validated against a real personal primary Google Calendar without committing private calendar details. The validation confirmed OAuth web-client setup, read-only calendar connection, real **Google Upcoming Events** rendering, the 90-day DSL window, readable table formatting, warning summaries, Why panel behavior, and disconnect/reconnect behavior.
+
+The validation did **not** cover production OAuth verification, multi-calendar selection, write actions, incremental sync, or mobile. See [STAGE_0_5_REAL_WORLD_VALIDATION.md](STAGE_0_5_REAL_WORLD_VALIDATION.md).
+
+## Stage 0.75 Quality Status
+
+Stage 0.75 adds quality only:
+
+- Why panel dialog semantics, Escape close, close-button focus, and focus return to the triggering Why button.
+- Row-specific accessible names for Why buttons.
+- Connector status and setup/error messages with polite live-region semantics.
+- More semantic cell editor tabs and warning-details text.
+- Display-only correction for Google Calendar all-day exclusive end dates.
+- Friendlier empty state for no Google Calendar events in the 90-day window.
+- Additional mock-based adapter edge-case, privacy, performance, and E2E coverage.
+
+Stage 0.75 does **not** add another connector, calendar writes, Gmail, Drive, Tasks, MCP, NL/model integration, mobile, sync, Automerge, marketplace features, widgets, custom renderers, payments, or autonomous background actions.
 
 ## What Was Implemented
 
@@ -331,7 +343,7 @@ The current prototype supports this Stage 0 demo:
 
 ## Important Boundaries
 
-Stage 0.5 deliberately does **not** include:
+Stage 0.75 deliberately does **not** include:
 
 - Google connectors other than Google Calendar events read-only
 - OAuth beyond the in-memory Google Calendar browser token flow
@@ -372,10 +384,9 @@ The current code should not make privacy or connector claims beyond what is impl
 
 Recommended next implementation work:
 
-1. Add a small accessibility pass over keyboard/focus behavior.
-2. Expand Playwright coverage if the UI grows beyond the current golden path.
-3. Add performance sanity tests for 1k/10k synthetic records.
-4. Improve previous-evaluation metadata display after cache clearing.
-5. Move toward Stage 1 only after the Google Calendar Stage 0.5 path remains green.
+1. Keep the Stage 0.75 regression suite green while planning Stage 1.
+2. Decide whether the next stage needs broader source-registry helpers before adding any new source.
+3. Improve previous-evaluation metadata display after cache clearing if it remains useful.
+4. Move toward Stage 1 only after the current Google Calendar path remains green.
 
 Out-of-scope features remain listed in [DEFERRED_FEATURES.md](DEFERRED_FEATURES.md).

@@ -7,7 +7,7 @@ export function TableRenderer({
   result,
 }: {
   result: CellEvaluationResult;
-  onWhy: (evidence: ProvenanceEvidence) => void;
+  onWhy: (evidence: ProvenanceEvidence, trigger?: HTMLElement | null) => void;
 }) {
   const table = result.payload.table;
   if (!table) {
@@ -27,16 +27,20 @@ export function TableRenderer({
                 )}
                 data-column={column}
                 key={column}
+                scope="col"
               >
                 {table.columnLabels?.[column] ?? column}
               </th>
             ))}
-            <th className="table-header table-header-why">Why</th>
+            <th className="table-header table-header-why" scope="col">
+              Why
+            </th>
           </tr>
         </thead>
         <tbody>
           {table.rows.map((row) => {
             const evidence = evidenceForItem(result, row);
+            const itemLabel = row.title ?? String(row.itemId);
             return (
               <tr key={row.itemId}>
                 {table.columns.map((column) => {
@@ -62,7 +66,8 @@ export function TableRenderer({
                     <button
                       className="why-button"
                       type="button"
-                      onClick={() => onWhy(evidence)}
+                      aria-label={`Why for ${itemLabel}`}
+                      onClick={(event) => onWhy(evidence, event.currentTarget)}
                     >
                       Why
                     </button>

@@ -7,7 +7,7 @@ export function ListRenderer({
   result,
 }: {
   result: CellEvaluationResult;
-  onWhy: (evidence: ProvenanceEvidence) => void;
+  onWhy: (evidence: ProvenanceEvidence, trigger?: HTMLElement | null) => void;
 }) {
   const items = result.payload.items ?? [];
   return (
@@ -24,7 +24,11 @@ export function ListRenderer({
             <div className="row-actions">
               <time>{formatTime(item.time)}</time>
               {evidence ? (
-                <button type="button" onClick={() => onWhy(evidence)}>
+                <button
+                  type="button"
+                  aria-label={`Why for ${item.title ?? item.itemId}`}
+                  onClick={(event) => onWhy(evidence, event.currentTarget)}
+                >
                   Why
                 </button>
               ) : null}

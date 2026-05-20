@@ -394,8 +394,13 @@ function errorDetails(error: unknown): unknown {
   return error;
 }
 
+export type MockGoogleCalendarScenario = "default" | "no-events";
+
 export class MockGoogleCalendarSourceAdapter extends GoogleCalendarSourceAdapter {
-  constructor(tokenProvider: GoogleCalendarTokenProvider) {
+  constructor(
+    tokenProvider: GoogleCalendarTokenProvider,
+    scenario: MockGoogleCalendarScenario = "default",
+  ) {
     super({
       tokenProvider,
       fetchImpl: async () =>
@@ -403,25 +408,29 @@ export class MockGoogleCalendarSourceAdapter extends GoogleCalendarSourceAdapter
           JSON.stringify({
             summary: "Primary calendar",
             etag: "mock-google-calendar-etag",
-            items: [
-              {
-                id: "google-event-001",
-                summary: "Design review",
-                start: { dateTime: "2026-05-20T18:00:00.000Z" },
-                end: { dateTime: "2026-05-20T18:30:00.000Z" },
-                attendees: [{ email: "mira@example.test" }],
-                location: "Video",
-                description: "Review launch polish.",
-                organizer: { email: "organizer@example.test" },
-                status: "confirmed",
-                eventType: "default",
-                htmlLink: "https://calendar.google.test/event/google-event-001",
-                updated: "2026-05-20T12:00:00.000Z",
-              },
-            ],
+            items: scenario === "no-events" ? [] : mockGoogleCalendarEvents(),
           }),
           { status: 200 },
         ),
     });
   }
+}
+
+function mockGoogleCalendarEvents(): GoogleCalendarEvent[] {
+  return [
+    {
+      id: "google-event-001",
+      summary: "Design review",
+      start: { dateTime: "2026-05-20T18:00:00.000Z" },
+      end: { dateTime: "2026-05-20T18:30:00.000Z" },
+      attendees: [{ email: "mira@example.test" }],
+      location: "Video",
+      description: "Review launch polish.",
+      organizer: { email: "organizer@example.test" },
+      status: "confirmed",
+      eventType: "default",
+      htmlLink: "https://calendar.google.test/event/google-event-001",
+      updated: "2026-05-20T12:00:00.000Z",
+    },
+  ];
 }

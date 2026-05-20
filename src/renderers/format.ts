@@ -13,6 +13,8 @@ export interface FormatValueOptions {
   allDay?: boolean;
 }
 
+const dayMs = 24 * 60 * 60 * 1000;
+
 export function formatValue(
   value: TaintedValue | undefined,
   options: FormatValueOptions = {},
@@ -52,7 +54,7 @@ export function formatTime(value: string | undefined): string {
 }
 
 function formatDateValue(value: string, options: FormatValueOptions): string {
-  const date = new Date(value);
+  const date = displayDateForValue(value, options);
   if (Number.isNaN(date.getTime())) {
     return value;
   }
@@ -81,6 +83,18 @@ function formatDateValue(value: string, options: FormatValueOptions): string {
     delete fallbackOptions.timeZone;
     return new Intl.DateTimeFormat("en-US", fallbackOptions).format(date);
   }
+}
+
+function displayDateForValue(value: string, options: FormatValueOptions): Date {
+  const date = new Date(value);
+  if (
+    options.allDay &&
+    options.field === "end" &&
+    !Number.isNaN(date.getTime())
+  ) {
+    return new Date(date.getTime() - dayMs);
+  }
+  return date;
 }
 
 export function evidenceForItem(

@@ -31,6 +31,7 @@ Stage 0.5 includes:
 - Primary calendar upcoming events.
 - Existing canonical DSL validation, scheduler, renderers, provenance, Why panel, warning summaries, and redacted persistence.
 - Mock connector path for CI and E2E tests.
+- Stage 0.75 quality pass coverage for accessibility, empty states, all-day display, privacy regression, and edge cases.
 
 Stage 0.5 intentionally excludes:
 
@@ -77,6 +78,7 @@ No Gmail, Drive, broad Calendar, profile, email, or write scopes are requested.
 - Calendar reads use `events.list` for the primary calendar only.
 - Calendar writes are not implemented.
 - Table values are formatted for readability; evidence and raw field values keep the source ISO timestamps and source data.
+- All-day event `end.date` values are displayed as user-friendly inclusive dates while the raw exclusive Google API value remains preserved in runtime/evidence.
 - Evidence-tier persistence redacts event titles, descriptions, and locations.
 - Full-output persistence can store full output only if explicitly configured by snapshot policy, as in Stage 0 hardening.
 
@@ -117,4 +119,9 @@ No Gmail, Drive, broad Calendar, profile, email, or write scopes are requested.
 - No push notifications.
 - No production OAuth verification work in Stage 0.5.
 - All-day dates are normalized to the evaluation clock timezone with the small Stage 0 timezone helper.
+- All-day end dates are adjusted for display only because Google Calendar `end.date` is exclusive.
 - E2E tests use an explicit mock connector path and do not call Google.
+
+## Real-World Validation
+
+Stage 0.5 was validated with a real personal primary Google Calendar. The validation record intentionally excludes private event details and screenshots. See [STAGE_0_5_REAL_WORLD_VALIDATION.md](STAGE_0_5_REAL_WORLD_VALIDATION.md).

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { explainWhyItem } from "@/provenance/why";
+import { explainEmptyCell, explainWhyItem } from "@/provenance/why";
+import { parseCanonicalDsl } from "@/dsl/parse";
 import { evaluateCell } from "@/runtime/evaluator";
 import { createDailyWorkLens } from "@/runtime/starter-lens";
 import { createSyntheticAdapters } from "@/sources/synthetic/synthetic-adapter";
@@ -43,5 +44,26 @@ describe("provenance and Why explanations", () => {
       "render",
     ]);
     expect(why.evidence[0]?.itemId).toBe(evidence.itemId);
+  });
+
+  it("uses friendly empty copy for Google Calendar 90-day windows", () => {
+    const parsed = parseCanonicalDsl(`from google.calendar.events
+where start after now()
+where start before in_days(90)
+sort by start asc
+take 10
+show as table`);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    expect(
+      explainEmptyCell({
+        ast: parsed.value,
+        sourceSchema: sourceSchemaRegistry["google.calendar.events"],
+        evaluatedAt: "2026-05-20T13:00:00.000Z",
+      }),
+    ).toBe("No upcoming events found in the next 90 days.");
   });
 });
