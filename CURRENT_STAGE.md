@@ -79,6 +79,16 @@ Stage 0.5 adds only:
 
 Stage 0.5 does **not** add Gmail, Drive, Tasks, Google Workspace MCP, arbitrary MCP servers, calendar writes, event create/update/delete, NL/model integration, mobile, sync, Automerge, marketplace, widgets, custom renderers, payments, or autonomous background actions.
 
+- Google OAuth web client configured.
+- Personal primary calendar connected.
+- Google Upcoming Events cell rendered real data.
+- 90-day DSL window worked.
+- Warning summary appeared.
+- Table formatting was readable.
+- Why panel opened.
+- Disconnect behavior tested if you did test it.
+- No Gmail/Drive/MCP/writes/sync/NL/mobile added.
+
 ## What Was Implemented
 
 ### Project Foundation
