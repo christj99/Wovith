@@ -61,6 +61,9 @@ show as chart`);
         ),
       ).toBe(true);
     }
+    expect(
+      syntheticSourceSchemas["synthetic.calendar.events"].defaultTableColumns,
+    ).toEqual(["title", "start", "end", "attendees", "location", "project"]);
   });
 
   it("defines and validates the Google Calendar Stage 0.5 source", () => {

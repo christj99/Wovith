@@ -100,6 +100,14 @@ export const syntheticSourceSchemas: Record<string, SourceSchema> = {
     description: "Deterministic fixture calendar events for Stage 0.",
     itemIdField: "id",
     capabilities: ["local-only"],
+    defaultTableColumns: [
+      "title",
+      "start",
+      "end",
+      "attendees",
+      "location",
+      "project",
+    ],
     defaultRenderer: "table",
     defaultSort: { field: "start", direction: "asc" },
     fields: {
