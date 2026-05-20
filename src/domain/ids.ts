@@ -8,7 +8,7 @@ import type {
   SnapshotId,
   SourceId,
   SourceItemId,
-} from './types';
+} from "./types";
 
 export function asLensId(value: string): LensId {
   return value as LensId;
@@ -56,19 +56,19 @@ export function stableHash(input: unknown): ContentHash {
   for (let index = 0; index < json.length; index += 1) {
     hash = (hash * 33) ^ json.charCodeAt(index);
   }
-  return (`h${(hash >>> 0).toString(16).padStart(8, '0')}`) as ContentHash;
+  return `h${(hash >>> 0).toString(16).padStart(8, "0")}` as ContentHash;
 }
 
 export function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
+  if (value === null || typeof value !== "object") {
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map((entry) => stableStringify(entry)).join(',')}]`;
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
   }
   const record = value as Record<string, unknown>;
   return `{${Object.keys(record)
     .sort()
     .map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`)
-    .join(',')}}`;
+    .join(",")}}`;
 }

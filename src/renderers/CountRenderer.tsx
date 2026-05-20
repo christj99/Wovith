@@ -1,4 +1,4 @@
-import type { CellEvaluationResult } from '@/domain/types';
+import type { CellEvaluationResult } from "@/domain/types";
 
 export function CountRenderer({ result }: { result: CellEvaluationResult }) {
   return (

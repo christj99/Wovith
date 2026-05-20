@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+pnpm-lock.yaml
+Wovith_Handoff/
+docs/canonical_docs/
+docs/schema_patches/wovith_schemas_vnext.ts

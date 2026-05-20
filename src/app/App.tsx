@@ -1,21 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { CellDefinition, CellEvaluationResult, ProvenanceEvidence, SourceSchema, WovithError } from '@/domain/types';
-import { parseCanonicalDsl } from '@/dsl/parse';
-import { validateCellAst } from '@/dsl/validate';
-import { explainEmptyCell, explainWhyItem } from '@/provenance/why';
-import { CountRenderer } from '@/renderers/CountRenderer';
-import { ListRenderer } from '@/renderers/ListRenderer';
-import { RawRenderer } from '@/renderers/RawRenderer';
-import { TableRenderer } from '@/renderers/TableRenderer';
-import { evaluateCell } from '@/runtime/evaluator';
-import { createDailyWorkLens, updateCellAst } from '@/runtime/starter-lens';
-import { createSyntheticAdapters } from '@/sources/synthetic/synthetic-adapter';
-import { STAGE_0_RENDERERS } from '@/sources/synthetic/schema';
-import { sourceSchemaRegistry } from '@/sources/registry';
-import { LocalStage0Store } from '@/storage/local-store';
+import type {
+  CellDefinition,
+  CellEvaluationResult,
+  DslValidationWarning,
+  EvaluationClock,
+  ProvenanceEvidence,
+  SourceSchema,
+  WovithError,
+} from "@/domain/types";
+import { parseCanonicalDsl } from "@/dsl/parse";
+import { validateCellAst } from "@/dsl/validate";
+import { explainEmptyCell, explainWhyItem } from "@/provenance/why";
+import { CountRenderer } from "@/renderers/CountRenderer";
+import { ListRenderer } from "@/renderers/ListRenderer";
+import { RawRenderer } from "@/renderers/RawRenderer";
+import { TableRenderer } from "@/renderers/TableRenderer";
+import { RuntimeScheduler } from "@/runtime/scheduler";
+import { createDailyWorkLens, updateCellAst } from "@/runtime/starter-lens";
+import { createSyntheticAdapters } from "@/sources/synthetic/synthetic-adapter";
+import { STAGE_0_RENDERERS } from "@/sources/synthetic/schema";
+import { sourceSchemaRegistry } from "@/sources/registry";
+import { LocalStage0Store } from "@/storage/local-store";
 
-const DEMO_NOW = new Date('2026-05-20T13:00:00.000Z');
+const DEMO_CLOCK: EvaluationClock = {
+  now: new Date("2026-05-20T13:00:00.000Z"),
+  timeZone: "America/New_York",
+};
 
 interface WhySelection {
   cell: CellDefinition;
@@ -35,13 +46,19 @@ export function App() {
     store.saveLens(starter);
     return starter;
   });
-  const [results, setResults] = useState<Record<string, CellEvaluationResult>>(() =>
-    Object.fromEntries(store.listEvaluations().map((result) => [result.cellId, result])),
+  const [results, setResults] = useState<Record<string, CellEvaluationResult>>(
+    {},
   );
   const [selectedCellId, setSelectedCellId] = useState(lens.cells[0]?.id);
-  const selectedCell = lens.cells.find((cell) => cell.id === selectedCellId) ?? lens.cells[0];
-  const [editorText, setEditorText] = useState(selectedCell?.canonicalDsl ?? '');
+  const selectedCell =
+    lens.cells.find((cell) => cell.id === selectedCellId) ?? lens.cells[0];
+  const [editorText, setEditorText] = useState(
+    selectedCell?.canonicalDsl ?? "",
+  );
   const [editorErrors, setEditorErrors] = useState<WovithError[]>([]);
+  const [editorWarnings, setEditorWarnings] = useState<DslValidationWarning[]>(
+    [],
+  );
   const [whySelection, setWhySelection] = useState<WhySelection | null>(null);
 
   const validationContext = useMemo(
@@ -52,41 +69,55 @@ export function App() {
     }),
     [],
   );
+  const scheduler = useMemo(
+    () =>
+      new RuntimeScheduler({
+        adapters,
+        sourceSchemas: sourceSchemaRegistry,
+        validationContext,
+        clock: DEMO_CLOCK,
+      }),
+    [adapters, validationContext],
+  );
 
   const refreshCell = useCallback(
-    async (cell: CellDefinition) => {
-      const sourceSchema = sourceSchemaRegistry[cell.ast.from.sourceId];
-      const adapter = adapters[cell.ast.from.sourceId];
-      if (!sourceSchema || !adapter) {
-        return;
-      }
-      const result = await evaluateCell({
-        cell,
-        lensId: lens.id,
-        adapter,
-        sourceSchema,
-        validationContext,
-        now: DEMO_NOW,
-      });
-      store.saveEvaluation(result);
+    async (
+      cell: CellDefinition,
+      reason: "manual" | "refresh-all" | "on-open" = "manual",
+    ) => {
+      const result = await scheduler.refreshCell(cell, lens, reason);
+      store.saveEvaluation(result, lens.snapshotPolicy);
       setResults((current) => ({ ...current, [cell.id]: result }));
     },
-    [adapters, lens.id, store, validationContext],
+    [lens, scheduler, store],
   );
 
   useEffect(() => {
-    lens.cells.filter((cell) => cell.enabled).forEach((cell) => {
-      void refreshCell(cell);
+    void scheduler.refreshOnOpen(lens).then((nextResults) => {
+      nextResults.forEach((result) =>
+        store.saveEvaluation(result, lens.snapshotPolicy),
+      );
+      setResults((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          nextResults.map((result) => [result.cellId, result]),
+        ),
+      }));
     });
-  }, [lens.cells, refreshCell]);
+  }, [lens, scheduler, store]);
 
   useEffect(() => {
-    setEditorText(selectedCell?.canonicalDsl ?? '');
+    setEditorText(selectedCell?.canonicalDsl ?? "");
     setEditorErrors([]);
-  }, [selectedCell]);
+    if (selectedCell) {
+      const report = validateCellAst(selectedCell.ast, validationContext);
+      setEditorWarnings(report.warnings);
+    }
+  }, [selectedCell, validationContext]);
 
   function resetStarterLens() {
     const starter = createDailyWorkLens();
+    store.clearEvaluationsForLens(lens.id);
     store.saveLens(starter);
     setLens(starter);
     setSelectedCellId(starter.cells[0]?.id);
@@ -105,27 +136,51 @@ export function App() {
     }
     const report = validateCellAst(parsed.value, validationContext);
     if (!report.valid) {
-      setEditorErrors(report.errors.map((error) => ({ code: error.code, message: error.message, details: error.path })));
+      setEditorErrors(
+        report.errors.map((error) => ({
+          code: error.code,
+          message: error.message,
+          details: error.path,
+        })),
+      );
+      setEditorWarnings(report.warnings);
       return;
     }
-    const updatedCell = updateCellAst(selectedCell, parsed.value, new Date().toISOString());
+    const updatedCell = updateCellAst(
+      selectedCell,
+      parsed.value,
+      new Date().toISOString(),
+    );
     const nextLens = {
       ...lens,
       updatedAt: updatedCell.updatedAt,
-      cells: lens.cells.map((cell) => (cell.id === updatedCell.id ? updatedCell : cell)),
+      cells: lens.cells.map((cell) =>
+        cell.id === updatedCell.id ? updatedCell : cell,
+      ),
     };
     store.saveLens(nextLens);
     setLens(nextLens);
     setEditorErrors([]);
+    setEditorWarnings(report.warnings);
     void refreshCell(updatedCell);
   }
 
-  function openWhy(cell: CellDefinition, result: CellEvaluationResult, evidence: ProvenanceEvidence) {
+  function clearCachedResults() {
+    store.clearEvaluationsForLens(lens.id);
+    setResults({});
+    setWhySelection(null);
+  }
+
+  function openWhy(
+    cell: CellDefinition,
+    result: CellEvaluationResult,
+    evidence: ProvenanceEvidence,
+  ) {
     setWhySelection({ cell, result, evidence });
   }
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-testid="wovith-app">
       <aside className="sidebar" aria-label="Lens list">
         <div className="brand-block">
           <div className="brand-mark">W</div>
@@ -138,8 +193,20 @@ export function App() {
           <span>{lens.name}</span>
           <small>{lens.cells.length} cells</small>
         </button>
-        <button className="ghost-button" type="button" onClick={resetStarterLens}>
+        <button
+          className="ghost-button"
+          type="button"
+          onClick={resetStarterLens}
+        >
           Reset Demo Lens
+        </button>
+        <button
+          className="ghost-button"
+          type="button"
+          data-testid="clear-cache"
+          onClick={clearCachedResults}
+        >
+          Clear Cached Results
         </button>
       </aside>
 
@@ -154,7 +221,20 @@ export function App() {
             <button
               className="primary-button"
               type="button"
-              onClick={() => lens.cells.forEach((cell) => void refreshCell(cell))}
+              data-testid="refresh-all"
+              onClick={() =>
+                void scheduler.refreshAll(lens).then((nextResults) => {
+                  nextResults.forEach((result) =>
+                    store.saveEvaluation(result, lens.snapshotPolicy),
+                  );
+                  setResults((current) => ({
+                    ...current,
+                    ...Object.fromEntries(
+                      nextResults.map((result) => [result.cellId, result]),
+                    ),
+                  }));
+                })
+              }
             >
               Refresh All
             </button>
@@ -185,7 +265,9 @@ export function App() {
             <div className="editor-tabs">
               {lens.cells.map((cell) => (
                 <button
-                  className={cell.id === selectedCell?.id ? 'tab active' : 'tab'}
+                  className={
+                    cell.id === selectedCell?.id ? "tab active" : "tab"
+                  }
                   key={cell.id}
                   type="button"
                   onClick={() => setSelectedCellId(cell.id)}
@@ -199,6 +281,7 @@ export function App() {
             </label>
             <textarea
               id="dsl-editor"
+              data-testid="dsl-editor"
               value={editorText}
               spellCheck={false}
               onChange={(event) => setEditorText(event.target.value)}
@@ -210,7 +293,15 @@ export function App() {
                 ))}
               </div>
             ) : null}
-            <button className="primary-button full-width" type="button" onClick={saveEditor}>
+            {editorWarnings.length > 0 ? (
+              <WarningList warnings={editorWarnings} />
+            ) : null}
+            <button
+              className="primary-button full-width"
+              type="button"
+              data-testid="save-cell"
+              onClick={saveEditor}
+            >
               Save Cell
             </button>
           </aside>
@@ -218,7 +309,13 @@ export function App() {
       </section>
 
       {whySelection ? (
-        <WhyPanel selection={whySelection} sourceSchema={sourceSchemaRegistry[whySelection.cell.ast.from.sourceId]} onClose={() => setWhySelection(null)} />
+        <WhyPanel
+          selection={whySelection}
+          sourceSchema={
+            sourceSchemaRegistry[whySelection.cell.ast.from.sourceId]
+          }
+          onClose={() => setWhySelection(null)}
+        />
       ) : null}
     </main>
   );
@@ -227,27 +324,43 @@ export function App() {
 interface CellCardProps {
   cell: CellDefinition;
   result?: CellEvaluationResult;
-  sourceSchema: SourceSchema;
+  sourceSchema?: SourceSchema;
   onEdit: () => void;
   onRefresh: () => void;
   onWhy: (evidence: ProvenanceEvidence) => void;
 }
 
-function CellCard({ cell, onEdit, onRefresh, onWhy, result, sourceSchema }: CellCardProps) {
+function CellCard({
+  cell,
+  onEdit,
+  onRefresh,
+  onWhy,
+  result,
+  sourceSchema,
+}: CellCardProps) {
   const emptyReason =
-    result && result.errors.length === 0 && (result.snapshot.outputCount ?? 0) === 0
-      ? explainEmptyCell({ ast: cell.ast, sourceSchema, evaluatedAt: result.evaluatedAt })
+    result &&
+    sourceSchema &&
+    result.errors.length === 0 &&
+    (result.snapshot.outputCount ?? 0) === 0
+      ? explainEmptyCell({
+          ast: cell.ast,
+          sourceSchema,
+          evaluatedAt: result.evaluatedAt,
+        })
       : null;
 
   return (
-    <article className="cell-card">
+    <article className="cell-card" data-testid="cell-card">
       <header className="cell-header">
         <div>
           <h3>{cell.title}</h3>
           <p>{cell.description}</p>
         </div>
         <div className="cell-actions">
-          <span className={`freshness ${result?.freshness ?? 'idle'}`}>{result?.freshness ?? 'idle'}</span>
+          <span className={`freshness ${result?.freshness ?? "idle"}`}>
+            {result?.freshness ?? "idle"}
+          </span>
           <button type="button" onClick={onEdit}>
             Edit
           </button>
@@ -265,9 +378,16 @@ function CellCard({ cell, onEdit, onRefresh, onWhy, result, sourceSchema }: Cell
         </div>
       ) : null}
 
-      {!result ? <div className="loading-row">Evaluating...</div> : null}
+      {!result ? (
+        <div className="loading-row">
+          No current result. Refresh to evaluate.
+        </div>
+      ) : null}
       {result && result.errors.length === 0 ? (
         <>
+          {result.warnings.length > 0 ? (
+            <WarningList warnings={result.warnings} />
+          ) : null}
           <RendererSwitch result={result} onWhy={onWhy} />
           {emptyReason ? <p className="empty-reason">{emptyReason}</p> : null}
           <footer className="cell-footer">
@@ -280,20 +400,34 @@ function CellCard({ cell, onEdit, onRefresh, onWhy, result, sourceSchema }: Cell
   );
 }
 
-function RendererSwitch({ onWhy, result }: { result: CellEvaluationResult; onWhy: (evidence: ProvenanceEvidence) => void }) {
-  if (result.renderer === 'count') {
+function RendererSwitch({
+  onWhy,
+  result,
+}: {
+  result: CellEvaluationResult;
+  onWhy: (evidence: ProvenanceEvidence) => void;
+}) {
+  if (result.renderer === "count") {
     return <CountRenderer result={result} />;
   }
-  if (result.renderer === 'table') {
+  if (result.renderer === "table") {
     return <TableRenderer result={result} onWhy={onWhy} />;
   }
-  if (result.renderer === 'raw') {
+  if (result.renderer === "raw") {
     return <RawRenderer result={result} onWhy={onWhy} />;
   }
   return <ListRenderer result={result} onWhy={onWhy} />;
 }
 
-function WhyPanel({ onClose, selection, sourceSchema }: { onClose: () => void; selection: WhySelection; sourceSchema: SourceSchema }) {
+function WhyPanel({
+  onClose,
+  selection,
+  sourceSchema,
+}: {
+  onClose: () => void;
+  selection: WhySelection;
+  sourceSchema: SourceSchema;
+}) {
   const why = explainWhyItem({
     ast: selection.cell.ast,
     sourceSchema,
@@ -302,7 +436,11 @@ function WhyPanel({ onClose, selection, sourceSchema }: { onClose: () => void; s
   });
 
   return (
-    <aside className="why-panel" aria-label="Why am I seeing this?">
+    <aside
+      className="why-panel"
+      aria-label="Why am I seeing this?"
+      data-testid="why-panel"
+    >
       <header>
         <div>
           <p className="eyebrow">Why am I seeing this?</p>
@@ -330,12 +468,12 @@ function WhyPanel({ onClose, selection, sourceSchema }: { onClose: () => void; s
           <div className="evidence-block" key={evidence.id}>
             <p>Source: {sourceSchema.displayName}</p>
             <p>Item ID: {evidence.itemId}</p>
-            <p>Source timestamp: {evidence.sourceTimestamp ?? 'unknown'}</p>
+            <p>Source timestamp: {evidence.sourceTimestamp ?? "unknown"}</p>
             <p>Evidence recorded: {evidence.observedAt}</p>
             <ul>
               {evidence.matchedPredicates.map((predicate) => (
                 <li key={predicate.predicateId}>
-                  {predicate.field}: {predicate.actualPreview ?? 'unknown'}
+                  {predicate.field}: {predicate.actualPreview ?? "unknown"}
                 </li>
               ))}
             </ul>
@@ -364,5 +502,17 @@ function WhyPanel({ onClose, selection, sourceSchema }: { onClose: () => void; s
         <pre>{JSON.stringify(selection.evidence, null, 2)}</pre>
       </details>
     </aside>
+  );
+}
+
+function WarningList({ warnings }: { warnings: DslValidationWarning[] }) {
+  return (
+    <div className="warning-box" role="status">
+      {warnings.map((warning) => (
+        <p key={`${warning.code}-${warning.path ?? warning.message}`}>
+          {warning.message}
+        </p>
+      ))}
+    </div>
   );
 }

@@ -1,63 +1,139 @@
-import { asIsoDateTime } from './ids';
-import type { FunctionCallValue, IsoDateTime, LiteralValue } from './types';
+import { asIsoDateTime } from "./ids";
+import type {
+  EvaluationClock,
+  FunctionCallValue,
+  IsoDateTime,
+  LiteralValue,
+} from "./types";
 
-export function resolveAstValue(value: LiteralValue | FunctionCallValue | undefined, now: Date): unknown {
+const dayMs = 24 * 60 * 60 * 1000;
+
+export function resolveAstValue(
+  value: LiteralValue | FunctionCallValue | undefined,
+  clock: EvaluationClock,
+): unknown {
   if (!value) {
     return undefined;
   }
-  if (value.kind !== 'function') {
+  if (value.kind !== "function") {
     return value.value;
   }
-  if (value.name === 'now') {
-    return asIsoDateTime(now.toISOString());
+  if (value.name === "now") {
+    return asIsoDateTime(clock.now.toISOString());
   }
-  if (value.name === 'today') {
-    const date = new Date(now);
-    date.setHours(0, 0, 0, 0);
-    return asIsoDateTime(date.toISOString());
+  if (value.name === "today") {
+    return asIsoDateTime(
+      startOfDayInTimeZone(clock.now, clock.timeZone).toISOString(),
+    );
   }
   const firstArg = value.args[0];
-  const amount = firstArg?.kind === 'number' ? firstArg.value : 0;
-  const date = new Date(now);
-  if (value.name === 'days_ago') {
-    date.setDate(date.getDate() - amount);
-    return asIsoDateTime(date.toISOString());
+  const amount = firstArg?.kind === "number" ? firstArg.value : 0;
+  if (value.name === "days_ago") {
+    return asIsoDateTime(
+      new Date(clock.now.getTime() - amount * dayMs).toISOString(),
+    );
   }
-  if (value.name === 'in_days') {
-    date.setDate(date.getDate() + amount);
-    return asIsoDateTime(date.toISOString());
+  if (value.name === "in_days") {
+    return asIsoDateTime(
+      new Date(clock.now.getTime() + amount * dayMs).toISOString(),
+    );
   }
   return undefined;
 }
 
-export function previewAstValue(value: LiteralValue | FunctionCallValue | undefined): string {
+export function previewAstValue(
+  value: LiteralValue | FunctionCallValue | undefined,
+): string {
   if (!value) {
-    return '';
+    return "";
   }
-  if (value.kind === 'function') {
-    const args = value.args.map((arg) => previewAstValue(arg)).join(', ');
+  if (value.kind === "function") {
+    const args = value.args.map((arg) => previewAstValue(arg)).join(", ");
     return `${value.name}(${args})`;
   }
-  if (value.kind === 'string' || value.kind === 'enum' || value.kind === 'date' || value.kind === 'datetime') {
+  if (
+    value.kind === "string" ||
+    value.kind === "enum" ||
+    value.kind === "date" ||
+    value.kind === "datetime"
+  ) {
     return String(value.value);
   }
-  if (value.kind === 'array') {
-    return `[${value.value.map((entry) => previewAstValue(entry)).join(', ')}]`;
+  if (value.kind === "array") {
+    return `[${value.value.map((entry) => previewAstValue(entry)).join(", ")}]`;
   }
   return String(value.value);
 }
 
-export function toDateComparable(value: unknown): number {
+export function toDateComparable(value: unknown): number | null {
   if (value instanceof Date) {
-    return value.getTime();
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : time;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     const time = Date.parse(value);
-    return Number.isNaN(time) ? 0 : time;
+    return Number.isNaN(time) ? null : time;
   }
-  return 0;
+  return null;
 }
 
 export function isIsoDateTime(value: unknown): value is IsoDateTime {
-  return typeof value === 'string' && !Number.isNaN(Date.parse(value));
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
+export function startOfDayInTimeZone(date: Date, timeZone: string): Date {
+  const parts = getTimeZoneParts(date, timeZone);
+  const utcGuess = new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day, 0, 0, 0),
+  );
+  const offset = getTimeZoneOffsetMs(utcGuess, timeZone);
+  return new Date(utcGuess.getTime() - offset);
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = getTimeZoneParts(date, timeZone);
+  const zonedAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  return zonedAsUtc - date.getTime();
+}
+
+function getTimeZoneParts(
+  date: Date,
+  timeZone: string,
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const values = Object.fromEntries(
+    formatter.formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  const hour = Number(values.hour) === 24 ? 0 : Number(values.hour);
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour,
+    minute: Number(values.minute),
+    second: Number(values.second),
+  };
 }

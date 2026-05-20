@@ -1,6 +1,6 @@
-import type { CellEvaluationResult, ProvenanceEvidence } from '@/domain/types';
+import type { CellEvaluationResult, ProvenanceEvidence } from "@/domain/types";
 
-import { evidenceForItem } from './format';
+import { evidenceForItem } from "./format";
 
 export function RawRenderer({
   onWhy,
@@ -17,7 +17,11 @@ export function RawRenderer({
         {items.map((item) => {
           const evidence = evidenceForItem(result, item);
           return evidence ? (
-            <button key={item.itemId} type="button" onClick={() => onWhy(evidence)}>
+            <button
+              key={item.itemId}
+              type="button"
+              onClick={() => onWhy(evidence)}
+            >
               Why {item.itemId}
             </button>
           ) : null;

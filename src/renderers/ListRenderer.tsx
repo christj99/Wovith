@@ -1,6 +1,6 @@
-import type { CellEvaluationResult, ProvenanceEvidence } from '@/domain/types';
+import type { CellEvaluationResult, ProvenanceEvidence } from "@/domain/types";
 
-import { evidenceForItem, formatTime } from './format';
+import { evidenceForItem, formatTime } from "./format";
 
 export function ListRenderer({
   onWhy,

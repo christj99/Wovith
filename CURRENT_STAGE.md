@@ -33,6 +33,29 @@ The UI currently supports:
 - Why panel with plain-language reason, rule trace, evidence details, evaluation metadata, and raw evidence
 - local browser persistence for lens definitions and recent evaluation results
 
+## Stage 0 Hardening Status
+
+Stage 0 has now been hardened for the first read-only connector later, without starting Stage 0.5.
+
+The hardening pass added:
+
+- snapshot-aware persistence that stores redacted evaluation records by `snapshotPolicy.tier`
+- explicit cache/evidence clearing from storage and UI
+- a runtime scheduler with duplicate in-flight refresh prevention
+- refresh-all and on-open refresh paths through the scheduler
+- TTL stale marking support in the scheduler
+- visible blocked results for missing source schemas or source adapters
+- stricter canonical DSL parsing for duplicate/late clauses
+- documented AST comparison normalization for typed date/datetime/enum literals
+- null/invalid date predicate safety
+- explicit `EvaluationClock` with Stage 0 demo timezone `America/New_York`
+- renderer/display-field warnings for external or sensitive display output
+- truthful synthetic source capabilities set to `local-only`
+- Playwright E2E coverage for the golden Daily Work Lens loop
+- basic GitHub Actions CI for lint, format, unit tests, build, and E2E
+
+The hardening pass did **not** add real connectors, OAuth, Gmail, MCP, NL/model integration, mobile, sync, Automerge, marketplace, widgets, payments, or background autonomous actions.
+
 ## What Was Implemented
 
 ### Project Foundation
@@ -215,29 +238,31 @@ The current backing store is browser `localStorage`, with an in-memory storage i
 
 ## Verification
 
-The current implementation was verified with:
+The current implementation should be verified with:
 
 ```text
+corepack pnpm lint
+corepack pnpm format
 corepack pnpm test
 corepack pnpm build
-corepack pnpm lint
+corepack pnpm test:e2e
 ```
 
-Current test status:
+Current automated coverage includes:
 
-- 5 test files passing
-- 69 tests passing
+- unit/runtime tests for DSL, validation, scheduler, persistence, dates, provenance, and source schemas
 - 50+ valid golden DSL examples
 - invalid DSL syntax cases
 - parser/serializer round-trip tests
 - AST validation tests
 - source schema compatibility tests
 - synthetic runtime evaluation tests
-- renderer payload tests through runtime coverage
+- renderer warning tests through validation coverage
 - provenance and Why explanation tests
-- local persistence tests
+- local persistence redaction tests
+- Playwright E2E demo loop test
 
-The local app was also opened in the browser at:
+The local app can be opened in the browser at:
 
 ```text
 http://127.0.0.1:5173
@@ -293,21 +318,20 @@ The current code should not make privacy or connector claims beyond what is impl
 - There is no real connector or OAuth flow yet.
 - There is no natural-language-to-AST compiler yet.
 - The evaluator does all filtering/sorting in memory.
-- Persistence uses browser `localStorage`, not IndexedDB or Automerge.
-- The scheduler is simple manual/on-open evaluation, not a full background scheduler.
-- Freshness states are present but minimal.
+- Persistence uses browser `localStorage`, not IndexedDB or Automerge, but evaluation records are now redacted by snapshot policy.
+- The scheduler is intentionally small manual/on-open/refresh-all logic, not a background job system.
+- Freshness states and TTL stale marking are present but minimal.
 - UI polish is functional prototype quality.
-- There are no Playwright E2E tests yet, only browser sanity checks plus unit/runtime tests.
+- Playwright E2E coverage is a focused golden path, not exhaustive UI coverage.
 
 ## Best Next Steps
 
 Recommended next implementation work:
 
-1. Add a small runtime scheduler abstraction for duplicate in-flight prevention and TTL stale marking.
-2. Add focused UI tests or Playwright E2E coverage for edit/save/reload/Why.
-3. Improve the DSL editor feedback with structured validation warnings.
-4. Add a cache/evidence clear command.
-5. Add `STAGE_0_DEMO.md` with acceptance checklist and screenshots.
-6. Only after Stage 0 hardening, begin Stage 0.5 with one read-only real connector.
+1. Add a small accessibility pass over keyboard/focus behavior.
+2. Expand Playwright coverage if the UI grows beyond the current golden path.
+3. Add performance sanity tests for 1k/10k synthetic records.
+4. Improve previous-evaluation metadata display after cache clearing.
+5. Only after Stage 0 hardening remains green, begin Stage 0.5 with one read-only real connector.
 
 Out-of-scope features remain listed in [DEFERRED_FEATURES.md](DEFERRED_FEATURES.md).

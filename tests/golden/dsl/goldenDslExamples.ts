@@ -273,4 +273,20 @@ show as list`,
   `from synthetic.mail.threads
 where received_at after yesterday()
 show as list`,
+  `from synthetic.mail.threads
+take 5
+take 10
+show as list`,
+  `from synthetic.mail.threads
+show as list
+show as table`,
+  `from synthetic.mail.threads
+show as list
+take 10`,
+  `from synthetic.mail.threads
+show as list
+where unread is true`,
+  `from synthetic.mail.threads
+show as list
+sort by received_at desc`,
 ];

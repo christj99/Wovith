@@ -1,9 +1,9 @@
-import js from '@eslint/js';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
+import js from "@eslint/js";
+import globals from "globals";
+import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'Wovith_Handoff'] },
+  { ignores: ["dist", "coverage", "node_modules", "Wovith_Handoff"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -16,7 +16,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
+      "@typescript-eslint/no-explicit-any": "error",
     },
   },
 );

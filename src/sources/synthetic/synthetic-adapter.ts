@@ -1,7 +1,12 @@
-import type { Result, SourceAdapter, SourceQueryResult, SourceSchema } from '@/domain/types';
+import type {
+  Result,
+  SourceAdapter,
+  SourceQueryResult,
+  SourceSchema,
+} from "@/domain/types";
 
-import { syntheticFixtures } from './fixtures';
-import { syntheticSourceSchemas } from './schema';
+import { syntheticFixtures } from "./fixtures";
+import { syntheticSourceSchemas } from "./schema";
 
 export class SyntheticSourceAdapter implements SourceAdapter {
   readonly sourceId;
@@ -26,8 +31,14 @@ export class SyntheticSourceAdapter implements SourceAdapter {
   }
 }
 
-export function createSyntheticAdapters(): Record<string, SyntheticSourceAdapter> {
+export function createSyntheticAdapters(): Record<
+  string,
+  SyntheticSourceAdapter
+> {
   return Object.fromEntries(
-    Object.keys(syntheticFixtures).map((sourceId) => [sourceId, new SyntheticSourceAdapter(sourceId)]),
+    Object.keys(syntheticFixtures).map((sourceId) => [
+      sourceId,
+      new SyntheticSourceAdapter(sourceId),
+    ]),
   );
 }
