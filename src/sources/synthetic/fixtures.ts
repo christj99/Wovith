@@ -1,0 +1,226 @@
+import { asIsoDateTime, asSourceId, asSourceItemId, stableHash } from '@/domain/ids';
+import type { SourceId, SourceItem, TaintedValue, TrustLevel } from '@/domain/types';
+
+type FieldValue = string | number | boolean | string[] | null;
+
+function tainted(sourceId: SourceId, itemId: string, field: string, value: FieldValue, trust: TrustLevel): TaintedValue {
+  return {
+    value,
+    trust,
+    sourceRef: {
+      sourceId,
+      itemId: asSourceItemId(itemId),
+      field,
+    },
+    contentHash: stableHash(value),
+  };
+}
+
+function item(sourceIdText: string, id: string, fields: Record<string, { value: FieldValue; trust?: TrustLevel }>): SourceItem {
+  const sourceId = asSourceId(sourceIdText);
+  const mappedFields = Object.fromEntries(
+    Object.entries(fields).map(([field, entry]) => [
+      field,
+      tainted(sourceId, id, field, entry.value, entry.trust ?? 'connector-metadata'),
+    ]),
+  );
+  const updatedAt = typeof fields.updated_at?.value === 'string' ? asIsoDateTime(fields.updated_at.value) : undefined;
+  return {
+    id: asSourceItemId(id),
+    sourceId,
+    fields: mappedFields,
+    updatedAt,
+    contentHash: stableHash(mappedFields),
+  };
+}
+
+export const syntheticFixtures: Record<string, SourceItem[]> = {
+  'synthetic.mail.threads': [
+    item('synthetic.mail.threads', 'mail-001', {
+      id: { value: 'mail-001' },
+      subject: { value: 'Project Atlas launch notes', trust: 'external-content' },
+      sender: { value: 'mira@example.test' },
+      unread: { value: true },
+      important: { value: true },
+      received_at: { value: '2026-05-19T14:20:00.000Z' },
+      project: { value: 'Atlas' },
+      has_attachment: { value: true },
+      preview: { value: 'Updated notes for the launch review.', trust: 'external-content' },
+      labels: { value: ['work', 'project'] },
+    }),
+    item('synthetic.mail.threads', 'mail-002', {
+      id: { value: 'mail-002' },
+      subject: { value: 'Receipt for design subscription', trust: 'external-content' },
+      sender: { value: 'billing@example.test' },
+      unread: { value: true },
+      important: { value: false },
+      received_at: { value: '2026-05-18T11:05:00.000Z' },
+      project: { value: 'Operations' },
+      has_attachment: { value: false },
+      preview: { value: 'Your monthly receipt is ready.', trust: 'external-content' },
+      labels: { value: ['finance'] },
+    }),
+    item('synthetic.mail.threads', 'mail-003', {
+      id: { value: 'mail-003' },
+      subject: { value: 'Follow-up: contract redlines', trust: 'external-content' },
+      sender: { value: 'lee@example.test' },
+      unread: { value: false },
+      important: { value: true },
+      received_at: { value: '2026-05-16T16:45:00.000Z' },
+      project: { value: 'Legal' },
+      has_attachment: { value: true },
+      preview: { value: 'I left comments on the indemnity section.', trust: 'external-content' },
+      labels: { value: ['legal', 'follow-up'] },
+    }),
+    item('synthetic.mail.threads', 'mail-004', {
+      id: { value: 'mail-004' },
+      subject: { value: 'Weekly newsletter', trust: 'external-content' },
+      sender: { value: 'updates@example.test' },
+      unread: { value: true },
+      important: { value: false },
+      received_at: { value: '2026-05-10T09:00:00.000Z' },
+      project: { value: 'Reading' },
+      has_attachment: { value: false },
+      preview: { value: 'Five stories people are discussing.', trust: 'external-content' },
+      labels: { value: ['newsletter'] },
+    }),
+    item('synthetic.mail.threads', 'mail-005', {
+      id: { value: 'mail-005' },
+      subject: { value: 'Atlas incident review', trust: 'external-content' },
+      sender: { value: 'sre@example.test' },
+      unread: { value: true },
+      important: { value: true },
+      received_at: { value: '2026-05-20T12:35:00.000Z' },
+      project: { value: 'Atlas' },
+      has_attachment: { value: false },
+      preview: { value: 'Draft timeline and mitigations are attached in the doc.', trust: 'external-content' },
+      labels: { value: ['work', 'incident'] },
+    }),
+  ],
+  'synthetic.calendar.events': [
+    item('synthetic.calendar.events', 'event-001', {
+      id: { value: 'event-001' },
+      title: { value: 'Atlas launch review', trust: 'external-content' },
+      start: { value: '2026-05-20T17:00:00.000Z' },
+      end: { value: '2026-05-20T17:45:00.000Z' },
+      attendees: { value: 6 },
+      location: { value: 'Room 4B' },
+      project: { value: 'Atlas' },
+      description: { value: 'Review final risks before launch.', trust: 'external-content' },
+      related_doc_id: { value: 'drive-001' },
+    }),
+    item('synthetic.calendar.events', 'event-002', {
+      id: { value: 'event-002' },
+      title: { value: '1:1 with Priya', trust: 'external-content' },
+      start: { value: '2026-05-21T14:30:00.000Z' },
+      end: { value: '2026-05-21T15:00:00.000Z' },
+      attendees: { value: 2 },
+      location: { value: 'Video' },
+      project: { value: 'People' },
+      description: { value: 'Weekly sync.', trust: 'external-content' },
+      related_doc_id: { value: null },
+    }),
+    item('synthetic.calendar.events', 'event-003', {
+      id: { value: 'event-003' },
+      title: { value: 'Support handoff', trust: 'external-content' },
+      start: { value: '2026-05-22T18:00:00.000Z' },
+      end: { value: '2026-05-22T18:30:00.000Z' },
+      attendees: { value: 4 },
+      location: { value: 'Video' },
+      project: { value: 'Support' },
+      description: { value: 'Queue health and escalation notes.', trust: 'external-content' },
+      related_doc_id: { value: 'drive-004' },
+    }),
+    item('synthetic.calendar.events', 'event-004', {
+      id: { value: 'event-004' },
+      title: { value: 'Past retro', trust: 'external-content' },
+      start: { value: '2026-05-17T15:00:00.000Z' },
+      end: { value: '2026-05-17T15:45:00.000Z' },
+      attendees: { value: 8 },
+      location: { value: 'Video' },
+      project: { value: 'Atlas' },
+      description: { value: 'Retro from last week.', trust: 'external-content' },
+      related_doc_id: { value: null },
+    }),
+  ],
+  'synthetic.drive.files': [
+    item('synthetic.drive.files', 'drive-001', {
+      id: { value: 'drive-001' },
+      name: { value: 'Atlas launch plan', trust: 'external-content' },
+      modified_at: { value: '2026-05-20T10:15:00.000Z' },
+      owner: { value: 'Mira' },
+      mime_type: { value: 'application/vnd.google-apps.document' },
+      project: { value: 'Atlas' },
+      url: { value: 'https://example.test/drive/atlas-launch-plan' },
+      stale: { value: false },
+    }),
+    item('synthetic.drive.files', 'drive-002', {
+      id: { value: 'drive-002' },
+      name: { value: 'Pricing model v3', trust: 'external-content' },
+      modified_at: { value: '2026-05-14T20:10:00.000Z' },
+      owner: { value: 'Noah' },
+      mime_type: { value: 'application/vnd.google-apps.spreadsheet' },
+      project: { value: 'Revenue' },
+      url: { value: 'https://example.test/drive/pricing-model' },
+      stale: { value: false },
+    }),
+    item('synthetic.drive.files', 'drive-003', {
+      id: { value: 'drive-003' },
+      name: { value: 'Old onboarding checklist', trust: 'external-content' },
+      modified_at: { value: '2026-04-22T13:40:00.000Z' },
+      owner: { value: 'Chris' },
+      mime_type: { value: 'application/vnd.google-apps.document' },
+      project: { value: 'People' },
+      url: { value: 'https://example.test/drive/onboarding-checklist' },
+      stale: { value: true },
+    }),
+    item('synthetic.drive.files', 'drive-004', {
+      id: { value: 'drive-004' },
+      name: { value: 'Support escalation map', trust: 'external-content' },
+      modified_at: { value: '2026-05-18T09:30:00.000Z' },
+      owner: { value: 'Priya' },
+      mime_type: { value: 'application/vnd.google-apps.presentation' },
+      project: { value: 'Support' },
+      url: { value: 'https://example.test/drive/support-escalation' },
+      stale: { value: false },
+    }),
+  ],
+  'synthetic.tasks': [
+    item('synthetic.tasks', 'task-001', {
+      id: { value: 'task-001' },
+      title: { value: 'Review Atlas incident notes', trust: 'external-content' },
+      due_at: { value: '2026-05-20T21:00:00.000Z' },
+      completed: { value: false },
+      project: { value: 'Atlas' },
+      priority: { value: 'high' },
+      updated_at: { value: '2026-05-19T22:10:00.000Z' },
+    }),
+    item('synthetic.tasks', 'task-002', {
+      id: { value: 'task-002' },
+      title: { value: 'Send support handoff notes', trust: 'external-content' },
+      due_at: { value: '2026-05-22T16:00:00.000Z' },
+      completed: { value: false },
+      project: { value: 'Support' },
+      priority: { value: 'medium' },
+      updated_at: { value: '2026-05-18T14:00:00.000Z' },
+    }),
+    item('synthetic.tasks', 'task-003', {
+      id: { value: 'task-003' },
+      title: { value: 'Archive April receipts', trust: 'external-content' },
+      due_at: { value: '2026-05-27T16:00:00.000Z' },
+      completed: { value: false },
+      project: { value: 'Operations' },
+      priority: { value: 'low' },
+      updated_at: { value: '2026-05-03T11:10:00.000Z' },
+    }),
+    item('synthetic.tasks', 'task-004', {
+      id: { value: 'task-004' },
+      title: { value: 'Update pricing notes', trust: 'external-content' },
+      due_at: { value: '2026-05-19T20:00:00.000Z' },
+      completed: { value: true },
+      project: { value: 'Revenue' },
+      priority: { value: 'medium' },
+      updated_at: { value: '2026-05-19T19:45:00.000Z' },
+    }),
+  ],
+};
