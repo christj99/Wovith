@@ -1,5 +1,7 @@
 import type {
   CellId,
+  ConnectorAccountId,
+  ConnectorId,
   ContentHash,
   EvaluationId,
   IsoDateTime,
@@ -20,6 +22,14 @@ export function asCellId(value: string): CellId {
 
 export function asSourceId(value: string): SourceId {
   return value as SourceId;
+}
+
+export function asConnectorId(value: string): ConnectorId {
+  return value as ConnectorId;
+}
+
+export function asConnectorAccountId(value: string): ConnectorAccountId {
+  return value as ConnectorAccountId;
 }
 
 export function asSourceItemId(value: string): SourceItemId {

@@ -138,6 +138,77 @@ p {
   color: var(--muted);
 }
 
+.connector-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+}
+
+.connector-panel h2 {
+  font-size: 1rem;
+}
+
+.connector-panel p {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.connector-panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.connector-status {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: #fbfbf8;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.connector-status.connected {
+  color: var(--accent-strong);
+  background: #e8f6ef;
+  border-color: #b7ddcc;
+}
+
+.connector-status.error,
+.connector-status.expired,
+.connector-status.revoked,
+.connector-status.blocked {
+  color: var(--amber);
+  background: #fff9ea;
+  border-color: #ead39a;
+}
+
+.connector-note,
+.setup-note,
+.connector-error {
+  font-size: 0.86rem;
+}
+
+.setup-note,
+.connector-error {
+  border: 1px dashed #ead39a;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--amber);
+  background: #fff9ea;
+}
+
+.connector-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .ghost-button {
   margin-top: auto;
 }

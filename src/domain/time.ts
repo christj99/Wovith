@@ -90,6 +90,45 @@ export function startOfDayInTimeZone(date: Date, timeZone: string): Date {
   return new Date(utcGuess.getTime() - offset);
 }
 
+export function dateOnlyToStartOfDayInTimeZone(
+  dateText: string,
+  timeZone: string,
+): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+  if (!match) {
+    return null;
+  }
+  const target = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+  let instant = new Date(
+    Date.UTC(target.year, target.month - 1, target.day, 0, 0, 0),
+  );
+  for (let index = 0; index < 3; index += 1) {
+    const parts = getTimeZoneParts(instant, timeZone);
+    const currentAsUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    const targetAsUtc = Date.UTC(
+      target.year,
+      target.month - 1,
+      target.day,
+      0,
+      0,
+      0,
+    );
+    instant = new Date(instant.getTime() - (currentAsUtc - targetAsUtc));
+  }
+  return instant;
+}
+
 function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
   const parts = getTimeZoneParts(date, timeZone);
   const zonedAsUtc = Date.UTC(

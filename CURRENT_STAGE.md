@@ -1,23 +1,25 @@
 # Current Stage
 
-## Stage 0: Synthetic Runtime Prototype
+## Stage 0.5: Google Calendar Read-Only Connector
 
-Wovith is currently at **Stage 0**. This repo now contains a working local web prototype that proves the core lens loop with deterministic synthetic data:
+Wovith is currently at **Stage 0.5**. This repo contains the hardened Stage 0 local web prototype plus exactly one real read-only connector: Google Calendar events.
 
 ```text
-synthetic source -> cell AST -> canonical DSL -> validation -> evaluation -> renderer -> provenance/Why panel -> local persistence
+source -> cell AST -> canonical DSL -> validation -> scheduler/evaluation -> renderer -> provenance/Why panel -> redacted local persistence
 ```
 
-The current prototype is intentionally small. It is a lens-first runtime, not a chatbot, not a broad connector platform, and not an automation system.
+The current prototype remains intentionally small. It is a lens-first runtime, not a chatbot, not a broad connector platform, and not an automation system.
 
 ## Current Outcome
 
-The app runs as a Vite + React + TypeScript web app. The first usable screen is the **Daily Work Lens**, which contains four starter cells:
+The app runs as a Vite + React + TypeScript web app. The first usable screen is still the **Daily Work Lens**, which contains four synthetic starter cells:
 
 - **Unread Important Messages** from `synthetic.mail.threads`
 - **Upcoming Meetings** from `synthetic.calendar.events`
 - **Recently Changed Docs** from `synthetic.drive.files`
 - **Stale Tasks Due Soon** from `synthetic.tasks`
+
+Stage 0.5 adds an optional **Google Upcoming Events** cell from `google.calendar.events` after the user connects Google Calendar read-only access. If the cell exists while the connector is disconnected, it shows a visible blocked state instead of falling back to synthetic data.
 
 Each cell is backed by a typed AST and a deterministic canonical DSL string. Users can inspect and edit the DSL in the cell editor, save it, re-evaluate the cell, and see validation errors when a rule is invalid.
 
@@ -32,6 +34,7 @@ The UI currently supports:
 - item-level **Why** buttons
 - Why panel with plain-language reason, rule trace, evidence details, evaluation metadata, and raw evidence
 - local browser persistence for lens definitions and recent evaluation results
+- Google Calendar connector panel with setup, connect, connected, disconnect, expired/error, and blocked states
 
 ## Stage 0 Hardening Status
 
@@ -55,6 +58,25 @@ The hardening pass added:
 - basic GitHub Actions CI for lint, format, unit tests, build, and E2E
 
 The hardening pass did **not** add real connectors, OAuth, Gmail, MCP, NL/model integration, mobile, sync, Automerge, marketplace, widgets, payments, or background autonomous actions.
+
+## Stage 0.5 Status
+
+Stage 0.5 adds only:
+
+- `google.calendar.events` source schema
+- Google Calendar read-only browser token flow using Google Identity Services
+- in-memory access-token handling
+- Google Calendar REST `events.list` adapter for the primary calendar
+- optional Google Upcoming Events cell using canonical DSL
+- connector setup/connect/disconnect UI
+- blocked state when Google Calendar is not connected
+- renderer/display warnings for external or sensitive event fields
+- provenance/Why support for rendered event rows
+- evidence-tier redaction tests for real-calendar-shaped event text
+- mock Google Calendar connector path for E2E and CI
+- setup documentation in `STAGE_0_5_GOOGLE_CALENDAR.md`
+
+Stage 0.5 does **not** add Gmail, Drive, Tasks, Google Workspace MCP, arbitrary MCP servers, calendar writes, event create/update/delete, NL/model integration, mobile, sync, Automerge, marketplace, widgets, custom renderers, payments, or autonomous background actions.
 
 ## What Was Implemented
 
@@ -100,12 +122,13 @@ Synthetic fixture text that represents external/user-originated content is label
 
 ### Source Schema Registry
 
-Implemented Stage 0 source schemas for:
+Implemented source schemas for:
 
 - `synthetic.mail.threads`
 - `synthetic.calendar.events`
 - `synthetic.drive.files`
 - `synthetic.tasks`
+- `google.calendar.events`
 
 Each schema defines fields, field types, allowed operators, sortability, sensitivity, external-content flags, and renderer hints.
 
@@ -122,7 +145,7 @@ The fixtures include:
 - stale and recently modified docs
 - tasks with due dates, completion state, project, and priority
 
-No external APIs are used in Stage 0.
+No external APIs are used by the synthetic Stage 0 cells. Stage 0.5 uses Google Calendar `events.list` only after explicit user connection.
 
 ### Canonical DSL
 
@@ -192,7 +215,7 @@ The evaluator currently:
 - creates evaluation snapshots
 - returns typed freshness/error state
 
-Stage 0 evaluation is read-only and has no external side effects.
+Stage 0 and Stage 0.5 evaluation are read-only and have no external write side effects.
 
 ### Renderers
 
@@ -257,6 +280,7 @@ Current automated coverage includes:
 - AST validation tests
 - source schema compatibility tests
 - synthetic runtime evaluation tests
+- Google Calendar schema, auth, adapter, runtime, and persistence tests
 - renderer warning tests through validation coverage
 - provenance and Why explanation tests
 - local persistence redaction tests
@@ -292,14 +316,19 @@ The current prototype supports this Stage 0 demo:
 9. Click **Why** on a rendered item.
 10. Inspect source, predicate evidence, rule trace, and evaluation metadata.
 11. Reload the browser and see the saved lens/cell definitions persist locally.
+12. Optionally connect Google Calendar and evaluate **Google Upcoming Events**.
 
 ## Important Boundaries
 
-Stage 0 deliberately does **not** include:
+Stage 0.5 deliberately does **not** include:
 
-- real Google connectors
-- OAuth
+- Google connectors other than Google Calendar events read-only
+- OAuth beyond the in-memory Google Calendar browser token flow
+- Google Drive
+- Google Tasks
 - Gmail send/delete/modify
+- Gmail access
+- calendar event create/update/delete
 - arbitrary MCP servers
 - marketplace
 - mobile app
@@ -311,11 +340,14 @@ Stage 0 deliberately does **not** include:
 - autonomous background actions
 - model/NL integration
 
-The current code should not make privacy or connector claims beyond what is implemented. Wovith is local-first here for lens definitions and local evaluation state only. External sources are synthetic fixtures in Stage 0.
+The current code should not make privacy or connector claims beyond what is implemented. Wovith is local-first here for lens definitions and local evaluation state only. External source data remains in the connected service unless the user explicitly enables a storage tier, and evidence-tier persistence redacts event text.
 
 ## Known Limitations
 
-- There is no real connector or OAuth flow yet.
+- There is exactly one real connector: Google Calendar events read-only.
+- Google Calendar tokens are in-memory only; reload requires reconnecting.
+- Google Calendar is primary-calendar only.
+- There are no calendar writes, calendar list browsing, sync tokens, or push notifications.
 - There is no natural-language-to-AST compiler yet.
 - The evaluator does all filtering/sorting in memory.
 - Persistence uses browser `localStorage`, not IndexedDB or Automerge, but evaluation records are now redacted by snapshot policy.
@@ -333,6 +365,6 @@ Recommended next implementation work:
 2. Expand Playwright coverage if the UI grows beyond the current golden path.
 3. Add performance sanity tests for 1k/10k synthetic records.
 4. Improve previous-evaluation metadata display after cache clearing.
-5. Only after Stage 0 hardening remains green, begin Stage 0.5 with one read-only real connector.
+5. Move toward Stage 1 only after the Google Calendar Stage 0.5 path remains green.
 
 Out-of-scope features remain listed in [DEFERRED_FEATURES.md](DEFERRED_FEATURES.md).

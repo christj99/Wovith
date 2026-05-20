@@ -9,6 +9,8 @@ export type ProvenanceEvidenceId = Brand<string, "ProvenanceEvidenceId">;
 export type SnapshotId = Brand<string, "SnapshotId">;
 export type ContentHash = Brand<string, "ContentHash">;
 export type IsoDateTime = Brand<string, "IsoDateTime">;
+export type ConnectorId = Brand<string, "ConnectorId">;
+export type ConnectorAccountId = Brand<string, "ConnectorAccountId">;
 
 export type Result<T, E = WovithError> =
   | { ok: true; value: T }
@@ -255,10 +257,53 @@ export interface SourceQueryResult {
   sourceCursor?: string | null;
 }
 
+export interface SourceQueryContext {
+  clock: EvaluationClock;
+}
+
 export interface SourceAdapter {
   readonly sourceId: SourceId;
   schema(): Promise<SourceSchema>;
-  query(ast: CellAst): Promise<Result<SourceQueryResult>>;
+  query(
+    ast: CellAst,
+    context?: SourceQueryContext,
+  ): Promise<Result<SourceQueryResult>>;
+}
+
+export type ConnectorProvider = "google";
+
+export type ConnectorStatus =
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "expired"
+  | "revoked"
+  | "blocked"
+  | "error";
+
+export type ConnectorPermission = "calendar.events.readonly";
+
+export interface ConnectorAccount {
+  id: ConnectorAccountId;
+  connectorId: ConnectorId;
+  provider: ConnectorProvider;
+  displayName: string;
+  status: ConnectorStatus;
+  grantedScopes: string[];
+  connectedAt?: IsoDateTime;
+  expiresAt?: IsoDateTime;
+  lastError?: WovithError;
+}
+
+export interface ConnectorError {
+  connectorId: ConnectorId;
+  error: WovithError;
+}
+
+export interface AccessTokenState {
+  connectorId: ConnectorId;
+  status: "missing" | "valid" | "expired";
+  expiresAt?: IsoDateTime;
 }
 
 export interface DslValidationContext {

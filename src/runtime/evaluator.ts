@@ -53,7 +53,9 @@ export async function evaluateCell(
     });
   }
 
-  const queryResult = await input.adapter.query(input.cell.ast);
+  const queryResult = await input.adapter.query(input.cell.ast, {
+    clock: input.clock,
+  });
   if (!queryResult.ok) {
     const durationMs = Math.round(performance.now() - startedAt);
     return failedResult({

@@ -18,6 +18,10 @@ export interface RuntimeSchedulerOptions {
   validationContext: DslValidationContext;
   clock: EvaluationClock;
   defaultTtlMs?: number;
+  adapterUnavailableErrors?: Record<
+    string,
+    CellEvaluationResult["errors"][number]
+  >;
   evaluate?: (input: EvaluateCellInput) => Promise<CellEvaluationResult>;
 }
 
@@ -130,11 +134,19 @@ export class RuntimeScheduler {
         code:
           missing === "schema"
             ? "source-schema-missing"
-            : "source-adapter-unavailable",
+            : (this.options.adapterUnavailableErrors?.[cell.ast.from.sourceId]
+                ?.code ?? "source-adapter-unavailable"),
         message:
           missing === "schema"
             ? `Source schema unavailable for ${cell.ast.from.sourceId}.`
-            : `Source adapter unavailable for ${cell.ast.from.sourceId}.`,
+            : (this.options.adapterUnavailableErrors?.[cell.ast.from.sourceId]
+                ?.message ??
+              `Source adapter unavailable for ${cell.ast.from.sourceId}.`),
+        details:
+          missing === "adapter"
+            ? this.options.adapterUnavailableErrors?.[cell.ast.from.sourceId]
+                ?.details
+            : undefined,
       },
     });
   }

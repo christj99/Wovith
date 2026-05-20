@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseCanonicalDsl } from "@/dsl/parse";
 import { validateCellAst } from "@/dsl/validate";
 import { sourceSchemaRegistry } from "@/sources/registry";
+import { syntheticSourceSchemas } from "@/sources/synthetic/schema";
 import { stage0ValidationContext } from "@/testing/context";
 
 describe("AST validation and source schema compatibility", () => {
@@ -49,14 +50,42 @@ show as chart`);
     expect(parsed.ok).toBe(false);
   });
 
-  it("defines usable schemas for every Stage 0 source", () => {
-    for (const schema of Object.values(sourceSchemaRegistry)) {
+  it("defines usable schemas for every synthetic Stage 0 source", () => {
+    for (const schema of Object.values(syntheticSourceSchemas)) {
       expect(schema.sourceId).toBeTruthy();
       expect(schema.itemIdField in schema.fields).toBe(true);
       expect(schema.capabilities).toEqual(["local-only"]);
       expect(
         Object.values(schema.fields).every(
           (field) => field.allowedOperators.length > 0,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("defines and validates the Google Calendar Stage 0.5 source", () => {
+    const schema = sourceSchemaRegistry["google.calendar.events"];
+    expect(schema.sourceId).toBe("google.calendar.events");
+    expect(schema.capabilities).toEqual(["supports-pagination"]);
+    expect(schema.fields.title.containsExternalContent).toBe(true);
+    expect(schema.fields.description.sensitive).toBe(true);
+    const parsed = parseCanonicalDsl(`from google.calendar.events
+where start after now()
+sort by start asc
+take 10
+show as table`);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      const report = validateCellAst(parsed.value, stage0ValidationContext);
+      expect(report.valid).toBe(true);
+      expect(
+        report.warnings.some(
+          (warning) => warning.code === "renderer-external-content-display",
+        ),
+      ).toBe(true);
+      expect(
+        report.warnings.some(
+          (warning) => warning.code === "sensitive-field-display",
         ),
       ).toBe(true);
     }

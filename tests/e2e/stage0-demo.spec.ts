@@ -62,3 +62,54 @@ test("Stage 0 daily lens loop works end to end", async ({ page }) => {
     page.getByText("No current result. Refresh to evaluate").first(),
   ).toBeVisible();
 });
+
+test("Stage 0.5 mock Google Calendar connector path works", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.localStorage.clear();
+    window.localStorage.setItem("wovith.e2e.mockGoogle", "1");
+  });
+  await page.goto("/");
+
+  await expect(page.getByTestId("google-calendar-connector")).toContainText(
+    "Google Calendar",
+  );
+  await page.getByTestId("connect-google-calendar").click();
+  await expect(
+    page.getByRole("heading", { name: "Google Upcoming Events" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("1 Google Calendar Events item(s)"),
+  ).toBeVisible();
+  await expect(page.getByText("Design review")).toBeVisible();
+  const googleCell = page
+    .getByTestId("cell-card")
+    .filter({ hasText: "Google Upcoming Events" });
+  await expect(googleCell.getByTestId("warning-summary")).toContainText(
+    "This cell may display external content",
+  );
+
+  await page
+    .getByRole("row", { name: /Design review/ })
+    .getByRole("button", { name: "Why" })
+    .click();
+  await expect(page.getByTestId("why-panel")).toContainText(
+    "Google Upcoming Events",
+  );
+  await expect(page.getByTestId("why-panel")).toContainText(
+    "google.calendar.events",
+  );
+
+  await page.getByRole("button", { name: "Disconnect" }).click();
+  await expect(
+    page.getByText(
+      "Connect Google Calendar read-only access to evaluate this cell.",
+    ),
+  ).toBeVisible();
+
+  await page.getByTestId("clear-cache").click();
+  await expect(
+    page.getByText("No current result. Refresh to evaluate").first(),
+  ).toBeVisible();
+});

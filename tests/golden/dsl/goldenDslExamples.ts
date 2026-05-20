@@ -259,6 +259,11 @@ where due_at before in_days(10)
 sort by due_at asc
 take 20
 show as table`,
+  `from google.calendar.events
+where start after now()
+sort by start asc
+take 10
+show as table`,
 ];
 
 export const invalidGoldenDslExamples = [

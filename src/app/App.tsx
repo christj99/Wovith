@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { GoogleCalendarConnectorPanel } from "@/connectors/google-calendar/GoogleCalendarConnectorPanel";
+import {
+  BrowserGoogleCalendarTokenProvider,
+  MockGoogleCalendarTokenProvider,
+} from "@/connectors/google-calendar/google-calendar-auth";
+import {
+  GOOGLE_CALENDAR_CELL_ID,
+  ensureGoogleCalendarCell,
+} from "@/connectors/google-calendar/google-calendar-cell";
 import type {
   CellDefinition,
   CellEvaluationResult,
+  ConnectorAccount,
   DslValidationWarning,
   EvaluationClock,
   ProvenanceEvidence,
+  SourceAdapter,
   SourceSchema,
   WovithError,
 } from "@/domain/types";
@@ -19,6 +30,11 @@ import { RawRenderer } from "@/renderers/RawRenderer";
 import { TableRenderer } from "@/renderers/TableRenderer";
 import { RuntimeScheduler } from "@/runtime/scheduler";
 import { createDailyWorkLens, updateCellAst } from "@/runtime/starter-lens";
+import {
+  GoogleCalendarSourceAdapter,
+  MockGoogleCalendarSourceAdapter,
+} from "@/sources/google-calendar/google-calendar-adapter";
+import { GOOGLE_CALENDAR_EVENTS_SOURCE_ID } from "@/sources/google-calendar/schema";
 import { createSyntheticAdapters } from "@/sources/synthetic/synthetic-adapter";
 import { STAGE_0_RENDERERS } from "@/sources/synthetic/schema";
 import { sourceSchemaRegistry } from "@/sources/registry";
@@ -36,7 +52,34 @@ interface WhySelection {
 }
 
 export function App() {
-  const adapters = useMemo(() => createSyntheticAdapters(), []);
+  const googleMockEnabled = useMemo(() => isGoogleCalendarMockEnabled(), []);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+    | string
+    | undefined;
+  const googleTokenProvider = useMemo(
+    () =>
+      googleMockEnabled
+        ? new MockGoogleCalendarTokenProvider()
+        : new BrowserGoogleCalendarTokenProvider({
+            clientId: googleClientId,
+          }),
+    [googleClientId, googleMockEnabled],
+  );
+  const [googleAccount, setGoogleAccount] = useState<ConnectorAccount>(() =>
+    googleTokenProvider.status(),
+  );
+  const adapters = useMemo<Record<string, SourceAdapter | undefined>>(() => {
+    const next: Record<string, SourceAdapter | undefined> =
+      createSyntheticAdapters();
+    if (googleAccount.status === "connected") {
+      next[GOOGLE_CALENDAR_EVENTS_SOURCE_ID] = googleMockEnabled
+        ? new MockGoogleCalendarSourceAdapter(googleTokenProvider)
+        : new GoogleCalendarSourceAdapter({
+            tokenProvider: googleTokenProvider,
+          });
+    }
+    return next;
+  }, [googleAccount.status, googleMockEnabled, googleTokenProvider]);
   const store = useMemo(() => new LocalStage0Store(window.localStorage), []);
   const [lens, setLens] = useState(() => {
     const existing = store.listLenses()[0];
@@ -61,6 +104,7 @@ export function App() {
     [],
   );
   const [whySelection, setWhySelection] = useState<WhySelection | null>(null);
+  const [pendingGoogleRefresh, setPendingGoogleRefresh] = useState(false);
 
   const validationContext = useMemo(
     () => ({
@@ -77,6 +121,13 @@ export function App() {
         sourceSchemas: sourceSchemaRegistry,
         validationContext,
         clock: DEMO_CLOCK,
+        adapterUnavailableErrors: {
+          [GOOGLE_CALENDAR_EVENTS_SOURCE_ID]: {
+            code: "google-calendar-not-connected",
+            message:
+              "Connect Google Calendar read-only access to evaluate this cell.",
+          },
+        },
       }),
     [adapters, validationContext],
   );
@@ -89,8 +140,11 @@ export function App() {
       const result = await scheduler.refreshCell(cell, lens, reason);
       store.saveEvaluation(result, lens.snapshotPolicy);
       setResults((current) => ({ ...current, [cell.id]: result }));
+      if (cell.ast.from.sourceId === GOOGLE_CALENDAR_EVENTS_SOURCE_ID) {
+        setGoogleAccount(googleTokenProvider.status());
+      }
     },
-    [lens, scheduler, store],
+    [googleTokenProvider, lens, scheduler, store],
   );
 
   useEffect(() => {
@@ -98,6 +152,15 @@ export function App() {
       nextResults.forEach((result) =>
         store.saveEvaluation(result, lens.snapshotPolicy),
       );
+      if (
+        nextResults.some(
+          (result) =>
+            lens.cells.find((cell) => cell.id === result.cellId)?.ast.from
+              .sourceId === GOOGLE_CALENDAR_EVENTS_SOURCE_ID,
+        )
+      ) {
+        setGoogleAccount(googleTokenProvider.status());
+      }
       setResults((current) => ({
         ...current,
         ...Object.fromEntries(
@@ -105,7 +168,20 @@ export function App() {
         ),
       }));
     });
-  }, [lens, scheduler, store]);
+  }, [googleTokenProvider, lens, scheduler, store]);
+
+  useEffect(() => {
+    if (!pendingGoogleRefresh) {
+      return;
+    }
+    const googleCell = lens.cells.find(
+      (cell) => cell.id === GOOGLE_CALENDAR_CELL_ID,
+    );
+    setPendingGoogleRefresh(false);
+    if (googleCell) {
+      void refreshCell(googleCell);
+    }
+  }, [lens, pendingGoogleRefresh, refreshCell]);
 
   useEffect(() => {
     setEditorText(selectedCell?.canonicalDsl ?? "");
@@ -124,6 +200,27 @@ export function App() {
     setSelectedCellId(starter.cells[0]?.id);
     setResults({});
     setWhySelection(null);
+  }
+
+  async function connectGoogleCalendar() {
+    setGoogleAccount({ ...googleTokenProvider.status(), status: "connecting" });
+    const result = await googleTokenProvider.connect();
+    const nextAccount = googleTokenProvider.status();
+    setGoogleAccount(nextAccount);
+    if (!result.ok) {
+      return;
+    }
+    const nextLens = ensureGoogleCalendarCell(lens, new Date().toISOString());
+    store.saveLens(nextLens);
+    setLens(nextLens);
+    setSelectedCellId(GOOGLE_CALENDAR_CELL_ID as CellDefinition["id"]);
+    setPendingGoogleRefresh(true);
+  }
+
+  function disconnectGoogleCalendar() {
+    googleTokenProvider.disconnect();
+    setGoogleAccount(googleTokenProvider.status());
+    setPendingGoogleRefresh(true);
   }
 
   function saveEditor() {
@@ -187,13 +284,20 @@ export function App() {
           <div className="brand-mark">W</div>
           <div>
             <h1>Wovith</h1>
-            <p>Stage 0</p>
+            <p>Stage 0.5</p>
           </div>
         </div>
         <button className="lens-button active" type="button">
           <span>{lens.name}</span>
           <small>{lens.cells.length} cells</small>
         </button>
+        <GoogleCalendarConnectorPanel
+          account={googleAccount}
+          clientIdConfigured={Boolean(googleClientId?.trim())}
+          mockEnabled={googleMockEnabled}
+          onConnect={() => void connectGoogleCalendar()}
+          onDisconnect={disconnectGoogleCalendar}
+        />
         <button
           className="ghost-button"
           type="button"
@@ -228,6 +332,16 @@ export function App() {
                   nextResults.forEach((result) =>
                     store.saveEvaluation(result, lens.snapshotPolicy),
                   );
+                  if (
+                    nextResults.some(
+                      (result) =>
+                        lens.cells.find((cell) => cell.id === result.cellId)
+                          ?.ast.from.sourceId ===
+                        GOOGLE_CALENDAR_EVENTS_SOURCE_ID,
+                    )
+                  ) {
+                    setGoogleAccount(googleTokenProvider.status());
+                  }
                   setResults((current) => ({
                     ...current,
                     ...Object.fromEntries(
@@ -526,5 +640,12 @@ function WarningList({ warnings }: { warnings: DslValidationWarning[] }) {
         </ul>
       </details>
     </div>
+  );
+}
+
+function isGoogleCalendarMockEnabled(): boolean {
+  return (
+    import.meta.env.VITE_WOVITH_E2E_MOCK_GOOGLE === "1" ||
+    window.localStorage.getItem("wovith.e2e.mockGoogle") === "1"
   );
 }
