@@ -95,6 +95,7 @@ export async function evaluateCell(
     input.sourceSchema,
     limited,
     evidenceIdsByItem,
+    { displayTimeZone: input.clock.timeZone },
   );
   const durationMs = Math.round(performance.now() - startedAt);
   const snapshot = {

@@ -101,6 +101,7 @@ export interface SourceSchema {
   itemIdField: string;
   fields: Record<string, FieldSchema>;
   capabilities: SourceCapability[];
+  defaultTableColumns?: string[];
   defaultSort?: SortClause;
   defaultRenderer: RendererKind;
 }
@@ -393,6 +394,9 @@ export interface RenderedItem {
 
 export interface TablePayload {
   columns: string[];
+  columnLabels?: Record<string, string>;
+  columnTypes?: Record<string, FieldType>;
+  displayTimeZone?: string;
   rows: RenderedItem[];
 }
 

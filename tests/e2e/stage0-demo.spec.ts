@@ -83,6 +83,11 @@ test("Stage 0.5 mock Google Calendar connector path works", async ({
     page.getByText("1 Google Calendar Events item(s)"),
   ).toBeVisible();
   await expect(page.getByText("Design review")).toBeVisible();
+  const designReviewRow = page.getByRole("row", { name: /Design review/ });
+  await expect(designReviewRow).toContainText("May 20, 2026, 2:00 PM");
+  await expect(designReviewRow).toContainText("May 20, 2026, 2:30 PM");
+  await expect(designReviewRow).not.toContainText("google-event-001");
+  await expect(designReviewRow).not.toContainText("2026-05-20T18:00:00.000Z");
   const googleCell = page
     .getByTestId("cell-card")
     .filter({ hasText: "Google Upcoming Events" });
@@ -90,10 +95,7 @@ test("Stage 0.5 mock Google Calendar connector path works", async ({
     "This cell may display external content",
   );
 
-  await page
-    .getByRole("row", { name: /Design review/ })
-    .getByRole("button", { name: "Why" })
-    .click();
+  await designReviewRow.getByRole("button", { name: "Why" }).click();
   await expect(page.getByTestId("why-panel")).toContainText(
     "Google Upcoming Events",
   );

@@ -67,10 +67,20 @@ show as chart`);
     const schema = sourceSchemaRegistry["google.calendar.events"];
     expect(schema.sourceId).toBe("google.calendar.events");
     expect(schema.capabilities).toEqual(["supports-pagination"]);
+    expect(schema.defaultTableColumns).toEqual([
+      "title",
+      "start",
+      "end",
+      "attendees",
+      "location",
+      "status",
+    ]);
     expect(schema.fields.title.containsExternalContent).toBe(true);
+    expect(schema.fields.all_day.type).toBe("boolean");
     expect(schema.fields.description.sensitive).toBe(true);
     const parsed = parseCanonicalDsl(`from google.calendar.events
 where start after now()
+where start before in_days(90)
 sort by start asc
 take 10
 show as table`);

@@ -67,8 +67,9 @@ Stage 0.5 adds only:
 - Google Calendar read-only browser token flow using Google Identity Services
 - in-memory access-token handling
 - Google Calendar REST `events.list` adapter for the primary calendar
-- optional Google Upcoming Events cell using canonical DSL
+- optional Google Upcoming Events cell using canonical DSL bounded to the next 90 days
 - connector setup/connect/disconnect UI
+- readable table labels and date/time display while preserving raw values in evidence
 - blocked state when Google Calendar is not connected
 - renderer/display warnings for external or sensitive event fields
 - provenance/Why support for rendered event rows

@@ -15,6 +15,7 @@ Primary DSL:
 ```text
 from google.calendar.events
 where start after now()
+where start before in_days(90)
 sort by start asc
 take 10
 show as table
@@ -75,6 +76,7 @@ No Gmail, Drive, broad Calendar, profile, email, or write scopes are requested.
 - Disconnect clears the in-memory token and connector account state.
 - Calendar reads use `events.list` for the primary calendar only.
 - Calendar writes are not implemented.
+- Table values are formatted for readability; evidence and raw field values keep the source ISO timestamps and source data.
 - Evidence-tier persistence redacts event titles, descriptions, and locations.
 - Full-output persistence can store full output only if explicitly configured by snapshot policy, as in Stage 0 hardening.
 
@@ -102,7 +104,7 @@ No Gmail, Drive, broad Calendar, profile, email, or write scopes are requested.
 - **Popup blocked:** allow popups for the local dev origin and retry connect.
 - **Expired token:** reconnect from the Google Calendar panel.
 - **401 or 403:** reconnect and confirm the exact read-only events scope was granted.
-- **No upcoming events:** the default cell reads `start after now()` from the primary calendar only.
+- **No upcoming events:** the default cell reads `start after now()` and `start before in_days(90)` from the primary calendar only.
 
 ## Known Limitations
 

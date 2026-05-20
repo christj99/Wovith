@@ -13,6 +13,7 @@ const numberOperators: CanonicalOperator[] = [
   "greater_than",
   "less_than",
 ];
+const booleanOperators: CanonicalOperator[] = ["is", "is_not"];
 const timeOperators: CanonicalOperator[] = [
   "is",
   "is_not",
@@ -55,6 +56,14 @@ export const googleCalendarEventsSchema: SourceSchema = {
     "Read-only events from the user's primary Google Calendar for Stage 0.5.",
   itemIdField: "id",
   capabilities: ["supports-pagination"],
+  defaultTableColumns: [
+    "title",
+    "start",
+    "end",
+    "attendees",
+    "location",
+    "status",
+  ],
   defaultRenderer: "table",
   defaultSort: { field: "start", direction: "asc" },
   fields: {
@@ -71,6 +80,9 @@ export const googleCalendarEventsSchema: SourceSchema = {
     }),
     attendees: field("attendees", "Attendees", "number", numberOperators, {
       rendererHints: ["table"],
+    }),
+    all_day: field("all_day", "All Day", "boolean", booleanOperators, {
+      sortable: false,
     }),
     location: field("location", "Location", "string", stringOperators, {
       nullable: true,

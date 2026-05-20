@@ -21,6 +21,7 @@ import { testClock } from "@/testing/context";
 
 const calendarDsl = `from google.calendar.events
 where start after now()
+where start before in_days(90)
 sort by start asc
 take 10
 show as table`;
@@ -51,6 +52,7 @@ describe("Google Calendar source adapter", () => {
     expect(url.searchParams.get("orderBy")).toBe("startTime");
     expect(url.searchParams.get("timeZone")).toBe("America/New_York");
     expect(url.searchParams.get("timeMin")).toBe("2026-05-20T13:00:00.000Z");
+    expect(url.searchParams.get("timeMax")).toBe("2026-08-18T13:00:00.000Z");
     expect(init?.method).toBe("GET");
     expect(init?.body).toBeUndefined();
     expect(init?.headers).toMatchObject({
@@ -117,6 +119,7 @@ describe("Google Calendar source adapter", () => {
       expect(item.fields.title.value).toBe("(untitled event)");
       expect(item.fields.start.value).toBe("2026-05-20T22:00:00.000Z");
       expect(item.fields.attendees.value).toBe(2);
+      expect(item.fields.all_day.value).toBe(false);
       expect(item.fields.organizer_email.value).toBe("organizer@example.test");
     }
   });
@@ -134,6 +137,7 @@ describe("Google Calendar source adapter", () => {
 
     expect(item.fields.start.value).toBe("2026-05-21T04:00:00.000Z");
     expect(item.fields.end.value).toBe("2026-05-22T04:00:00.000Z");
+    expect(item.fields.all_day.value).toBe(true);
   });
 
   it("follows bounded pagination", async () => {

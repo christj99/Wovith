@@ -318,7 +318,7 @@ export function App() {
       <section className="workspace" aria-label="Lens detail">
         <header className="workspace-header">
           <div>
-            <p className="eyebrow">Local synthetic runtime</p>
+            <p className="eyebrow">Local lens runtime</p>
             <h2>{lens.name}</h2>
           </div>
           <div className="header-actions">

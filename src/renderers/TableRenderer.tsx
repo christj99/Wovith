@@ -19,9 +19,19 @@ export function TableRenderer({
         <thead>
           <tr>
             {table.columns.map((column) => (
-              <th key={column}>{column}</th>
+              <th
+                className={columnClassName(
+                  column,
+                  table.columnTypes?.[column],
+                  "header",
+                )}
+                data-column={column}
+                key={column}
+              >
+                {table.columnLabels?.[column] ?? column}
+              </th>
             ))}
-            <th>Why</th>
+            <th className="table-header table-header-why">Why</th>
           </tr>
         </thead>
         <tbody>
@@ -29,12 +39,31 @@ export function TableRenderer({
             const evidence = evidenceForItem(result, row);
             return (
               <tr key={row.itemId}>
-                {table.columns.map((column) => (
-                  <td key={column}>{formatValue(row.fields[column])}</td>
-                ))}
-                <td>
+                {table.columns.map((column) => {
+                  const fieldType = table.columnTypes?.[column];
+                  const allDay = row.fields.all_day?.value === true;
+                  return (
+                    <td
+                      className={columnClassName(column, fieldType, "cell")}
+                      data-column={column}
+                      key={column}
+                    >
+                      {formatValue(row.fields[column], {
+                        allDay,
+                        field: column,
+                        fieldType,
+                        timeZone: table.displayTimeZone,
+                      })}
+                    </td>
+                  );
+                })}
+                <td className="table-cell table-cell-why">
                   {evidence ? (
-                    <button type="button" onClick={() => onWhy(evidence)}>
+                    <button
+                      className="why-button"
+                      type="button"
+                      onClick={() => onWhy(evidence)}
+                    >
                       Why
                     </button>
                   ) : null}
@@ -46,4 +75,25 @@ export function TableRenderer({
       </table>
     </div>
   );
+}
+
+function columnClassName(
+  column: string,
+  fieldType: string | undefined,
+  kind: "header" | "cell",
+): string {
+  const classes = [
+    kind === "header" ? "table-header" : "table-cell",
+    `table-column-${column.replace(/[^a-z0-9_-]/gi, "-")}`,
+  ];
+  if (fieldType) {
+    classes.push(`table-${kind}-${fieldType}`);
+  }
+  if (fieldType === "datetime" || fieldType === "date") {
+    classes.push(`table-${kind}-dateish`);
+  }
+  if (column === "title" || column === "location") {
+    classes.push(`table-${kind}-long-text`);
+  }
+  return classes.join(" ");
 }

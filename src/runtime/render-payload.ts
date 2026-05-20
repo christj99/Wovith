@@ -1,5 +1,6 @@
 import { asIsoDateTime } from "@/domain/ids";
 import type {
+  FieldType,
   RendererKind,
   RendererPayload,
   RenderedItem,
@@ -30,6 +31,7 @@ export function buildRendererPayload(
   sourceSchema: SourceSchema,
   items: SourceItem[],
   evidenceIdsByItem: Map<string, RenderedItem["evidenceIds"]>,
+  options: { displayTimeZone?: string } = {},
 ): RendererPayload {
   if (renderer === "count") {
     return {
@@ -49,6 +51,9 @@ export function buildRendererPayload(
       kind: renderer,
       table: {
         columns,
+        columnLabels: labelsForColumns(sourceSchema, columns),
+        columnTypes: typesForColumns(sourceSchema, columns),
+        displayTimeZone: options.displayTimeZone,
         rows: renderedItems,
       },
       items: renderedItems,
@@ -90,6 +95,13 @@ function toIsoDateTime(value: string | undefined): RenderedItem["time"] {
 }
 
 export function defaultColumns(sourceSchema: SourceSchema): string[] {
+  const hintedColumns = (sourceSchema.defaultTableColumns ?? []).filter(
+    (fieldName) => Boolean(sourceSchema.fields[fieldName]),
+  );
+  if (hintedColumns.length > 0) {
+    return hintedColumns;
+  }
+
   const ordered = Object.values(sourceSchema.fields)
     .filter(
       (field) =>
@@ -101,6 +113,30 @@ export function defaultColumns(sourceSchema: SourceSchema): string[] {
     return ordered.slice(0, 6);
   }
   return Object.keys(sourceSchema.fields).slice(0, 6);
+}
+
+function labelsForColumns(
+  sourceSchema: SourceSchema,
+  columns: string[],
+): Record<string, string> {
+  return Object.fromEntries(
+    columns.map((column) => [
+      column,
+      sourceSchema.fields[column]?.label ?? column,
+    ]),
+  );
+}
+
+function typesForColumns(
+  sourceSchema: SourceSchema,
+  columns: string[],
+): Record<string, FieldType> {
+  return Object.fromEntries(
+    columns.map((column) => [
+      column,
+      sourceSchema.fields[column]?.type ?? "unknown",
+    ]),
+  );
 }
 
 function firstString(

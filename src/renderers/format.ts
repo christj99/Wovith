@@ -1,11 +1,22 @@
 import type {
   CellEvaluationResult,
+  FieldType,
   ProvenanceEvidence,
   RenderedItem,
   TaintedValue,
 } from "@/domain/types";
 
-export function formatValue(value: TaintedValue | undefined): string {
+export interface FormatValueOptions {
+  field?: string;
+  fieldType?: FieldType;
+  timeZone?: string;
+  allDay?: boolean;
+}
+
+export function formatValue(
+  value: TaintedValue | undefined,
+  options: FormatValueOptions = {},
+): string {
   if (!value) {
     return "";
   }
@@ -14,6 +25,12 @@ export function formatValue(value: TaintedValue | undefined): string {
   }
   if (value.value === null || value.value === undefined) {
     return "";
+  }
+  if (
+    typeof value.value === "string" &&
+    (options.fieldType === "datetime" || options.fieldType === "date")
+  ) {
+    return formatDateValue(value.value, options);
   }
   return String(value.value);
 }
@@ -32,6 +49,38 @@ export function formatTime(value: string | undefined): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatDateValue(value: string, options: FormatValueOptions): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const dateOnly =
+    options.fieldType === "date" ||
+    (options.allDay && (options.field === "start" || options.field === "end"));
+  const formatOptions: Intl.DateTimeFormatOptions = dateOnly
+    ? {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: options.timeZone,
+      }
+    : {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: options.timeZone,
+      };
+  try {
+    return new Intl.DateTimeFormat("en-US", formatOptions).format(date);
+  } catch {
+    const fallbackOptions = { ...formatOptions };
+    delete fallbackOptions.timeZone;
+    return new Intl.DateTimeFormat("en-US", fallbackOptions).format(date);
+  }
 }
 
 export function evidenceForItem(

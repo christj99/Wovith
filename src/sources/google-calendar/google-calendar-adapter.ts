@@ -241,6 +241,7 @@ export function mapGoogleCalendarEvent(
   const id = asSourceItemId(event.id ?? stableHash(event));
   const start = googleDateToIso(event.start, input.clock);
   const end = googleDateToIso(event.end, input.clock);
+  const allDay = Boolean(event.start?.date || event.end?.date);
   const raw = {
     ...event,
     calendarSummary: input.calendarSummary,
@@ -273,6 +274,7 @@ export function mapGoogleCalendarEvent(
       start: value("start", start),
       end: value("end", end),
       attendees: value("attendees", event.attendees?.length ?? 0),
+      all_day: value("all_day", allDay),
       location: value("location", event.location ?? null, "external-content"),
       description: value(
         "description",

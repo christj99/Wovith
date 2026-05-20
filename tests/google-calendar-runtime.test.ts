@@ -34,6 +34,7 @@ describe("Google Calendar runtime integration", () => {
     if (!cell) {
       return;
     }
+    expect(cell.canonicalDsl).toContain("where start before in_days(90)");
     const adapter = new GoogleCalendarSourceAdapter({
       tokenProvider: connectedTokenProvider(),
       fetchImpl: async () =>
@@ -74,6 +75,23 @@ describe("Google Calendar runtime integration", () => {
     expect(result.payload.table?.rows[0]?.fields.title.value).toBe(
       "Private Stage 0.5 Review",
     );
+    expect(result.payload.table?.columns).toEqual([
+      "title",
+      "start",
+      "end",
+      "attendees",
+      "location",
+      "status",
+    ]);
+    expect(result.payload.table?.columns).not.toContain("id");
+    expect(result.payload.table?.columnLabels).toMatchObject({
+      attendees: "Attendees",
+      end: "End",
+      location: "Location",
+      start: "Start",
+      status: "Status",
+      title: "Title",
+    });
     expect(result.evidence[0]?.sourceId).toBe("google.calendar.events");
     expect(
       result.warnings.some(

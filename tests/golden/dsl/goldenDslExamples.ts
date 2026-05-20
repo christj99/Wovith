@@ -261,6 +261,7 @@ take 20
 show as table`,
   `from google.calendar.events
 where start after now()
+where start before in_days(90)
 sort by start asc
 take 10
 show as table`,
