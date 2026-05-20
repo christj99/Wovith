@@ -154,7 +154,7 @@ describe("local persistence", () => {
     const persisted = new LocalStage0Store(storage).listEvaluations(cell.id)[0];
     expect(persisted?.evidence.length).toBeGreaterThan(0);
     expect(persisted?.payloadPreview?.outputSummary).toBe(
-      "3 Synthetic Mail Threads item(s)",
+      "2 Synthetic Mail Threads item(s)",
     );
     expect(persisted?.fullOutput).toBeUndefined();
   });

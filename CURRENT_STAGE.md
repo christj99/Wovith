@@ -283,7 +283,7 @@ The current prototype supports this Stage 0 demo:
 
 1. Open Wovith.
 2. Select **Daily Work Lens**.
-3. See cells for unread messages, upcoming meetings, recent docs, and stale tasks.
+3. See cells for unread important messages, upcoming meetings, recent docs, and stale tasks.
 4. Open or use the cell editor.
 5. Inspect canonical DSL.
 6. Modify a predicate.
@@ -322,6 +322,7 @@ The current code should not make privacy or connector claims beyond what is impl
 - The scheduler is intentionally small manual/on-open/refresh-all logic, not a background job system.
 - Freshness states and TTL stale marking are present but minimal.
 - UI polish is functional prototype quality.
+- Renderer/display warnings are summarized in the UI with expandable details.
 - Playwright E2E coverage is a focused golden path, not exhaustive UI coverage.
 
 ## Best Next Steps

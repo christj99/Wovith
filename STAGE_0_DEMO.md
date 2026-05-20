@@ -42,7 +42,7 @@ corepack pnpm dev
 1. Open Wovith.
 2. Select **Daily Work Lens**.
 3. Confirm four cells render:
-   - unread messages
+   - unread important messages
    - upcoming meetings
    - recently changed docs
    - stale tasks
@@ -64,7 +64,7 @@ corepack pnpm dev
 - Snapshot persistence redacts evidence-tier cached data.
 - Duplicate refreshes for a cell are deduped by the scheduler.
 - Missing source schema/adapter produces a visible blocked state.
-- Renderer/display warnings are visible but non-fatal.
+- Renderer/display warnings are summarized, non-fatal, and expandable for exact details.
 
 ## Known Limitations
 

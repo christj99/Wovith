@@ -1,6 +1,7 @@
 export const validGoldenDslExamples = [
   `from synthetic.mail.threads
 where unread is true
+where important is true
 where received_at after days_ago(7)
 sort by received_at desc
 take 20

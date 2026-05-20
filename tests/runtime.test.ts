@@ -30,10 +30,9 @@ describe("synthetic runtime evaluation", () => {
     expect(result.payload.items?.map((item) => item.itemId)).toEqual([
       "mail-005",
       "mail-001",
-      "mail-002",
     ]);
-    expect(result.evidence).toHaveLength(3);
-    expect(result.evidence[0]?.matchedPredicates).toHaveLength(2);
+    expect(result.evidence).toHaveLength(2);
+    expect(result.evidence[0]?.matchedPredicates).toHaveLength(3);
   });
 
   it("generates count renderer payloads for stale tasks due soon", async () => {

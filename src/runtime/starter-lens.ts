@@ -15,9 +15,10 @@ const starterCells: Array<{
   {
     id: "cell_unread_messages",
     title: "Unread Important Messages",
-    description: "Unread threads from the last week, newest first.",
+    description: "Unread important threads from the last week, newest first.",
     dsl: `from synthetic.mail.threads
 where unread is true
+where important is true
 where received_at after days_ago(7)
 sort by received_at desc
 take 20

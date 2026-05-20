@@ -37,6 +37,7 @@ describe("provenance and Why explanations", () => {
       "source",
       "filter",
       "filter",
+      "filter",
       "sort",
       "take",
       "render",

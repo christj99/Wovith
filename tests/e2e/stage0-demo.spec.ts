@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-const atlasDsl = `from synthetic.mail.threads
-where project is "Atlas"
+const operationsDsl = `from synthetic.mail.threads
+where project is "Operations"
 sort by received_at desc
 take 20
 show as list`;
@@ -26,16 +26,18 @@ test("Stage 0 daily lens loop works end to end", async ({ page }) => {
   await expect(page.getByTestId("dsl-editor")).toBeVisible();
 
   await expect(
-    page.getByText("3 Synthetic Mail Threads item(s)"),
-  ).toBeVisible();
-  await page.getByTestId("dsl-editor").fill(atlasDsl);
-  await page.getByTestId("save-cell").click();
-  await expect(
     page.getByText("2 Synthetic Mail Threads item(s)"),
   ).toBeVisible();
   await expect(page.getByText("Receipt for design subscription")).toHaveCount(
     0,
   );
+
+  await page.getByTestId("dsl-editor").fill(operationsDsl);
+  await page.getByTestId("save-cell").click();
+  await expect(
+    page.getByText("1 Synthetic Mail Threads item(s)"),
+  ).toBeVisible();
+  await expect(page.getByText("Receipt for design subscription")).toBeVisible();
 
   await page.getByTestId("dsl-editor").fill(invalidDsl);
   await page.getByTestId("save-cell").click();
@@ -50,9 +52,9 @@ test("Stage 0 daily lens loop works end to end", async ({ page }) => {
   await expect(page.getByTestId("why-panel")).toContainText("Evidence");
 
   await page.reload();
-  await expect(page.getByTestId("dsl-editor")).toHaveValue(atlasDsl);
+  await expect(page.getByTestId("dsl-editor")).toHaveValue(operationsDsl);
   await expect(
-    page.getByText("2 Synthetic Mail Threads item(s)"),
+    page.getByText("1 Synthetic Mail Threads item(s)"),
   ).toBeVisible();
 
   await page.getByTestId("clear-cache").click();

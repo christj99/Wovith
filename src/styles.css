@@ -282,6 +282,24 @@ p {
   margin: 12px 0;
 }
 
+.warning-summary {
+  margin: 0;
+}
+
+.warning-box details {
+  margin-top: 8px;
+}
+
+.warning-box summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.warning-box ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
 .list-renderer {
   display: grid;
   gap: 10px;

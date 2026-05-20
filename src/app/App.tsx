@@ -10,6 +10,7 @@ import type {
   WovithError,
 } from "@/domain/types";
 import { parseCanonicalDsl } from "@/dsl/parse";
+import { summarizeValidationWarnings } from "@/dsl/warning-summary";
 import { validateCellAst } from "@/dsl/validate";
 import { explainEmptyCell, explainWhyItem } from "@/provenance/why";
 import { CountRenderer } from "@/renderers/CountRenderer";
@@ -506,13 +507,24 @@ function WhyPanel({
 }
 
 function WarningList({ warnings }: { warnings: DslValidationWarning[] }) {
+  const summary = summarizeValidationWarnings(warnings);
+  if (!summary) {
+    return null;
+  }
+
   return (
     <div className="warning-box" role="status">
-      {warnings.map((warning) => (
-        <p key={`${warning.code}-${warning.path ?? warning.message}`}>
-          {warning.message}
-        </p>
-      ))}
+      <p className="warning-summary" data-testid="warning-summary">
+        {summary.summary}
+      </p>
+      <details data-testid="warning-details">
+        <summary>Details</summary>
+        <ul>
+          {summary.details.map((detail, index) => (
+            <li key={`${index}-${detail}`}>{detail}</li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 }
