@@ -46,6 +46,26 @@ describe("runtime scheduler", () => {
     expect(results.every((result) => result.freshness === "fresh")).toBe(true);
   });
 
+  it("refresh-all skips disabled cells", async () => {
+    const lens = {
+      ...createDailyWorkLens(),
+      cells: createDailyWorkLens().cells.map((cell, index) =>
+        index === 0 ? { ...cell, enabled: false } : cell,
+      ),
+    };
+    const scheduler = new RuntimeScheduler({
+      adapters: createSyntheticAdapters(),
+      sourceSchemas: sourceSchemaRegistry,
+      validationContext: stage0ValidationContext,
+      clock: testClock,
+    });
+    const results = await scheduler.refreshAll(lens);
+    expect(results).toHaveLength(3);
+    expect(results.map((result) => result.cellId)).not.toContain(
+      lens.cells[0].id,
+    );
+  });
+
   it("marks results stale with a deterministic clock", async () => {
     const lens = createDailyWorkLens();
     const scheduler = new RuntimeScheduler({

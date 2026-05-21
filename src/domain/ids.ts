@@ -1,5 +1,6 @@
 import type {
   CellId,
+  AlphaFeedbackId,
   ConnectorAccountId,
   ConnectorId,
   ContentHash,
@@ -11,6 +12,10 @@ import type {
   SourceId,
   SourceItemId,
 } from "./types";
+
+export function asAlphaFeedbackId(value: string): AlphaFeedbackId {
+  return value as AlphaFeedbackId;
+}
 
 export function asLensId(value: string): LensId {
   return value as LensId;

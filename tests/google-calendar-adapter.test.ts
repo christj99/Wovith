@@ -120,6 +120,11 @@ describe("Google Calendar source adapter", () => {
       expect(item.fields.start.value).toBe("2026-05-20T22:00:00.000Z");
       expect(item.fields.attendees.value).toBe(2);
       expect(item.fields.all_day.value).toBe(false);
+      expect(item.fields.duration_minutes.value).toBe(30);
+      expect(item.fields.has_location.value).toBe(false);
+      expect(item.fields.has_description.value).toBe(false);
+      expect(item.fields.title_missing.value).toBe(true);
+      expect(item.fields.is_outside_work_hours.value).toBe(true);
       expect(item.fields.organizer_email.value).toBe("organizer@example.test");
     }
   });
@@ -138,6 +143,7 @@ describe("Google Calendar source adapter", () => {
     expect(item.fields.start.value).toBe("2026-05-21T04:00:00.000Z");
     expect(item.fields.end.value).toBe("2026-05-22T04:00:00.000Z");
     expect(item.fields.all_day.value).toBe(true);
+    expect(item.fields.duration_minutes.value).toBe(1440);
   });
 
   it("maps partial and real-world event shapes without crashing", async () => {
@@ -184,6 +190,10 @@ describe("Google Calendar source adapter", () => {
       expect(partial?.fields.description.trust).toBe("external-content");
       expect(partial?.fields.start.value).toBe("2026-05-20T13:00:00.000Z");
       expect(partial?.fields.end.value).toBe("2026-05-20T13:00:00.000Z");
+      expect(partial?.fields.duration_minutes.value).toBeNull();
+      expect(partial?.fields.has_location.value).toBe(true);
+      expect(partial?.fields.has_description.value).toBe(true);
+      expect(partial?.fields.title_missing.value).toBe(false);
       expect(partial?.fields.attendees.value).toBe(0);
       expect(partial?.fields.organizer_email.value).toBeNull();
       expect(recurring?.id).toBe("recurring-instance-20260520");

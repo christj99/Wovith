@@ -11,6 +11,7 @@ export type ContentHash = Brand<string, "ContentHash">;
 export type IsoDateTime = Brand<string, "IsoDateTime">;
 export type ConnectorId = Brand<string, "ConnectorId">;
 export type ConnectorAccountId = Brand<string, "ConnectorAccountId">;
+export type AlphaFeedbackId = Brand<string, "AlphaFeedbackId">;
 
 export type Result<T, E = WovithError> =
   | { ok: true; value: T }
@@ -226,6 +227,22 @@ export interface CalibrationRule {
   cellId?: CellId;
   itemId?: SourceItemId;
   reason?: string;
+}
+
+export type AlphaFeedbackKind =
+  | "useful"
+  | "not-useful"
+  | "noisy"
+  | "missing-context";
+
+export interface AlphaFeedbackEntry {
+  id: AlphaFeedbackId;
+  lensId: LensId;
+  cellId?: CellId;
+  itemId?: SourceItemId;
+  kind: AlphaFeedbackKind;
+  note?: string;
+  createdAt: IsoDateTime;
 }
 
 export type SnapshotTier = "none" | "evidence" | "summary" | "full-output";

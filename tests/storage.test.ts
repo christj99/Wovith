@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { asAlphaFeedbackId, asIsoDateTime, asSourceItemId } from "@/domain/ids";
 import { evaluateCell } from "@/runtime/evaluator";
 import { createDailyWorkLens } from "@/runtime/starter-lens";
 import { createSyntheticAdapters } from "@/sources/synthetic/synthetic-adapter";
@@ -190,5 +191,32 @@ describe("local persistence", () => {
 
     store.clearAll();
     expect(store.listLenses()).toHaveLength(0);
+  });
+
+  it("stores local-only alpha feedback without raw source text", () => {
+    const storage = new MemoryStorage();
+    const store = new LocalStage0Store(storage);
+    const lens = createDailyWorkLens();
+    const cell = lens.cells[0];
+    store.saveLens(lens);
+
+    store.saveFeedback({
+      id: asAlphaFeedbackId("feedback_001"),
+      lensId: lens.id,
+      cellId: cell.id,
+      itemId: asSourceItemId("mail-005"),
+      kind: "useful",
+      createdAt: asIsoDateTime("2026-05-20T15:00:00.000Z"),
+    });
+
+    expect(store.listFeedback({ lensId: lens.id })).toHaveLength(1);
+    const raw = storage.getItem("wovith.stage0.store.v1") ?? "";
+    expect(raw).toContain('"kind":"useful"');
+    expect(raw).not.toContain(
+      "Draft timeline and mitigations are attached in the doc.",
+    );
+
+    store.clearFeedbackForLens(lens.id);
+    expect(store.listFeedback()).toHaveLength(0);
   });
 });

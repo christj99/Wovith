@@ -265,6 +265,33 @@ where start before in_days(90)
 sort by start asc
 take 10
 show as table`,
+  `from google.calendar.events
+where start on or after today()
+where start before in_days(1)
+sort by start asc
+take 20
+show as table`,
+  `from google.calendar.events
+where duration_minutes greater than 60
+where start after now()
+where start before in_days(30)
+sort by start asc
+take 20
+show as table`,
+  `from google.calendar.events
+where title_missing is true
+where start after now()
+where start before in_days(30)
+sort by start asc
+take 20
+show as table`,
+  `from google.calendar.events
+where is_outside_work_hours is true
+where start after now()
+where start before in_days(30)
+sort by start asc
+take 20
+show as table`,
 ];
 
 export const invalidGoldenDslExamples = [

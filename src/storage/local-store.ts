@@ -1,4 +1,5 @@
 import type {
+  AlphaFeedbackEntry,
   CellEvaluationResult,
   LensDefinition,
   PersistedEvaluationRecord,
@@ -17,11 +18,13 @@ export interface StorageLike {
 interface PersistedState {
   lenses: LensDefinition[];
   evaluations: PersistedEvaluationRecord[];
+  feedback: AlphaFeedbackEntry[];
 }
 
 const defaultState: PersistedState = {
   lenses: [],
   evaluations: [],
+  feedback: [],
 };
 
 const defaultEvidencePolicy: SnapshotPolicy = {
@@ -54,8 +57,10 @@ export class LocalStage0Store {
   deleteLens(id: LensDefinition["id"]): void {
     const state = this.read();
     this.write({
+      ...state,
       lenses: state.lenses.filter((lens) => lens.id !== id),
       evaluations: state.evaluations.filter((result) => result.lensId !== id),
+      feedback: state.feedback.filter((entry) => entry.lensId !== id),
     });
   }
 
@@ -81,6 +86,47 @@ export class LocalStage0Store {
     return cellId
       ? evaluations.filter((entry) => entry.cellId === cellId)
       : evaluations;
+  }
+
+  saveFeedback(entry: AlphaFeedbackEntry): void {
+    const state = this.read();
+    this.write({
+      ...state,
+      feedback: [
+        ...state.feedback.filter((existing) => existing.id !== entry.id),
+        entry,
+      ],
+    });
+  }
+
+  listFeedback(
+    filters: {
+      lensId?: LensDefinition["id"];
+      cellId?: CellEvaluationResult["cellId"];
+    } = {},
+  ): AlphaFeedbackEntry[] {
+    return this.read().feedback.filter((entry) => {
+      if (filters.lensId && entry.lensId !== filters.lensId) {
+        return false;
+      }
+      if (filters.cellId && entry.cellId !== filters.cellId) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  clearFeedback(): void {
+    const state = this.read();
+    this.write({ ...state, feedback: [] });
+  }
+
+  clearFeedbackForLens(lensId: LensDefinition["id"]): void {
+    const state = this.read();
+    this.write({
+      ...state,
+      feedback: state.feedback.filter((entry) => entry.lensId !== lensId),
+    });
   }
 
   clearEvaluations(): void {
@@ -129,7 +175,10 @@ export class LocalStage0Store {
               Boolean(entry),
             )
         : [];
-      return { lenses, evaluations };
+      const feedback = Array.isArray(parsed.feedback)
+        ? parsed.feedback.filter(isAlphaFeedbackEntry)
+        : [];
+      return { lenses, evaluations, feedback };
     } catch {
       return defaultState;
     }
@@ -138,6 +187,18 @@ export class LocalStage0Store {
   private write(state: PersistedState): void {
     this.storage.setItem(this.key, JSON.stringify(state));
   }
+}
+
+function isAlphaFeedbackEntry(entry: unknown): entry is AlphaFeedbackEntry {
+  const candidate = entry as Partial<AlphaFeedbackEntry>;
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    Boolean(candidate.id) &&
+    Boolean(candidate.lensId) &&
+    Boolean(candidate.kind) &&
+    Boolean(candidate.createdAt)
+  );
 }
 
 export function toPersistedEvaluationRecord(

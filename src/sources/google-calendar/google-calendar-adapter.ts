@@ -1,6 +1,7 @@
 import { asIsoDateTime, asSourceItemId, stableHash } from "@/domain/ids";
 import {
   dateOnlyToStartOfDayInTimeZone,
+  hourInTimeZone,
   resolveAstValue,
   toDateComparable,
 } from "@/domain/time";
@@ -242,6 +243,14 @@ export function mapGoogleCalendarEvent(
   const start = googleDateToIso(event.start, input.clock);
   const end = googleDateToIso(event.end, input.clock);
   const allDay = Boolean(event.start?.date || event.end?.date);
+  const hasLocation = nonEmptyString(event.location);
+  const hasDescription = nonEmptyString(event.description);
+  const titleMissing = !nonEmptyString(event.summary);
+  const hasExplicitEnd = Boolean(event.end?.dateTime || event.end?.date);
+  const durationMinutes = hasExplicitEnd
+    ? computeDurationMinutes(start, end)
+    : null;
+  const outsideWorkHours = startsOutsideWorkHours(start, input.clock);
   const raw = {
     ...event,
     calendarSummary: input.calendarSummary,
@@ -275,6 +284,11 @@ export function mapGoogleCalendarEvent(
       end: value("end", end),
       attendees: value("attendees", event.attendees?.length ?? 0),
       all_day: value("all_day", allDay),
+      duration_minutes: value("duration_minutes", durationMinutes),
+      has_location: value("has_location", hasLocation),
+      has_description: value("has_description", hasDescription),
+      title_missing: value("title_missing", titleMissing),
+      is_outside_work_hours: value("is_outside_work_hours", outsideWorkHours),
       location: value("location", event.location ?? null, "external-content"),
       description: value(
         "description",
@@ -289,6 +303,31 @@ export function mapGoogleCalendarEvent(
       html_link: value("html_link", event.htmlLink ?? null),
     },
   };
+}
+
+function nonEmptyString(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function computeDurationMinutes(start: unknown, end: unknown): number | null {
+  const startTime = toDateComparable(start);
+  const endTime = toDateComparable(end);
+  if (startTime === null || endTime === null || endTime < startTime) {
+    return null;
+  }
+  return Math.round((endTime - startTime) / 60000);
+}
+
+function startsOutsideWorkHours(
+  start: unknown,
+  clock: EvaluationClock,
+): boolean {
+  const startTime = toDateComparable(start);
+  if (startTime === null) {
+    return false;
+  }
+  const hour = hourInTimeZone(new Date(startTime), clock.timeZone);
+  return hour < 8 || hour >= 18;
 }
 
 function googleDateToIso(
@@ -423,7 +462,13 @@ function mockGoogleCalendarEvents(): GoogleCalendarEvent[] {
       summary: "Design review",
       start: { dateTime: "2026-05-20T18:00:00.000Z" },
       end: { dateTime: "2026-05-20T18:30:00.000Z" },
-      attendees: [{ email: "mira@example.test" }],
+      attendees: [
+        { email: "mira@example.test" },
+        { email: "priya@example.test" },
+        { email: "sre@example.test" },
+        { email: "ops@example.test" },
+        { email: "pm@example.test" },
+      ],
       location: "Video",
       description: "Review launch polish.",
       organizer: { email: "organizer@example.test" },
@@ -431,6 +476,25 @@ function mockGoogleCalendarEvents(): GoogleCalendarEvent[] {
       eventType: "default",
       htmlLink: "https://calendar.google.test/event/google-event-001",
       updated: "2026-05-20T12:00:00.000Z",
+    },
+    {
+      id: "google-event-002",
+      summary: "   ",
+      start: { dateTime: "2026-05-21T23:30:00.000Z" },
+      end: { dateTime: "2026-05-22T00:00:00.000Z" },
+      attendees: [],
+      status: "confirmed",
+      eventType: "default",
+      updated: "2026-05-20T12:10:00.000Z",
+    },
+    {
+      id: "google-event-003",
+      summary: "All-day focus block",
+      start: { date: "2026-05-22" },
+      end: { date: "2026-05-23" },
+      status: "confirmed",
+      eventType: "default",
+      updated: "2026-05-20T12:15:00.000Z",
     },
   ];
 }

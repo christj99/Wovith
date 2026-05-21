@@ -7,6 +7,11 @@ import type {
 } from "@/domain/types";
 
 const stringOperators: CanonicalOperator[] = ["is", "is_not", "contains"];
+const nullableStringOperators: CanonicalOperator[] = [
+  ...stringOperators,
+  "exists",
+  "not_exists",
+];
 const numberOperators: CanonicalOperator[] = [
   "is",
   "is_not",
@@ -84,7 +89,52 @@ export const googleCalendarEventsSchema: SourceSchema = {
     all_day: field("all_day", "All Day", "boolean", booleanOperators, {
       sortable: false,
     }),
-    location: field("location", "Location", "string", stringOperators, {
+    duration_minutes: field(
+      "duration_minutes",
+      "Duration",
+      "number",
+      numberOperators,
+      {
+        nullable: true,
+      },
+    ),
+    has_location: field(
+      "has_location",
+      "Has Location",
+      "boolean",
+      booleanOperators,
+      {
+        sortable: false,
+      },
+    ),
+    has_description: field(
+      "has_description",
+      "Has Description",
+      "boolean",
+      booleanOperators,
+      {
+        sortable: false,
+      },
+    ),
+    title_missing: field(
+      "title_missing",
+      "Title Missing",
+      "boolean",
+      booleanOperators,
+      {
+        sortable: false,
+      },
+    ),
+    is_outside_work_hours: field(
+      "is_outside_work_hours",
+      "Outside Work Hours",
+      "boolean",
+      booleanOperators,
+      {
+        sortable: false,
+      },
+    ),
+    location: field("location", "Location", "string", nullableStringOperators, {
       nullable: true,
       containsExternalContent: true,
       sensitive: true,
@@ -94,7 +144,7 @@ export const googleCalendarEventsSchema: SourceSchema = {
       "description",
       "Description",
       "string",
-      stringOperators,
+      nullableStringOperators,
       {
         nullable: true,
         containsExternalContent: true,
@@ -106,7 +156,7 @@ export const googleCalendarEventsSchema: SourceSchema = {
       "organizer_email",
       "Organizer Email",
       "string",
-      stringOperators,
+      nullableStringOperators,
       {
         nullable: true,
         sensitive: true,
@@ -117,7 +167,7 @@ export const googleCalendarEventsSchema: SourceSchema = {
       "calendar_summary",
       "Calendar",
       "string",
-      stringOperators,
+      nullableStringOperators,
       {
         nullable: true,
       },
@@ -126,7 +176,7 @@ export const googleCalendarEventsSchema: SourceSchema = {
       rendererHints: ["table"],
     }),
     event_type: field("event_type", "Event Type", "enum", stringOperators),
-    html_link: field("html_link", "HTML Link", "url", stringOperators, {
+    html_link: field("html_link", "HTML Link", "url", nullableStringOperators, {
       nullable: true,
       sensitive: true,
     }),

@@ -129,6 +129,10 @@ export function dateOnlyToStartOfDayInTimeZone(
   return instant;
 }
 
+export function hourInTimeZone(date: Date, timeZone: string): number {
+  return getTimeZoneParts(date, timeZone).hour;
+}
+
 function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
   const parts = getTimeZoneParts(date, timeZone);
   const zonedAsUtc = Date.UTC(
